@@ -1,0 +1,36 @@
+name: Titanium Mobile CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  quality-check:
+    name: Verificaciones del proyecto
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener codigo del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Comprobar TypeScript
+        run: npx tsc --noEmit
+
+      - name: Ejecutar Lint
+        run: npm run lint
