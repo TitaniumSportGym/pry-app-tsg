@@ -1,12 +1,10 @@
 name: CI de Titanium Mobile
-name: CI de Titanium Mobile
 
 on:
   push:
     branches:
       - main
       - develop
-      - 'feature/**'
       - 'feature/**'
 
   pull_request:
@@ -17,12 +15,9 @@ on:
 jobs:
   analisis-estatico:
     name: Análisis estático
-  analisis-estatico:
-    name: Análisis estático
     runs-on: ubuntu-latest
 
     steps:
-      - name: Obtener código del repositorio
       - name: Obtener código del repositorio
         uses: actions/checkout@v4
 
@@ -30,17 +25,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          node-version: 24
           cache: npm
 
       - name: Instalar dependencias
-        run: npm ci
         run: npm ci
 
       - name: Comprobar TypeScript
         run: npx tsc --noEmit
 
-      - name: Ejecutar ESLint
       - name: Ejecutar ESLint
         run: npm run lint
 
