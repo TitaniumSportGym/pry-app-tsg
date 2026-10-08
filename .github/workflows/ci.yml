@@ -1,10 +1,11 @@
-name: Titanium Mobile CI
+name: CI de Titanium Mobile
 
 on:
   push:
     branches:
       - main
       - develop
+      - 'feature/**'
 
   pull_request:
     branches:
@@ -12,25 +13,45 @@ on:
       - develop
 
 jobs:
-  quality-check:
-    name: Verificaciones del proyecto
+  analisis-estatico:
+    name: Análisis estático
     runs-on: ubuntu-latest
 
     steps:
-      - name: Obtener codigo del repositorio
+      - name: Obtener código del repositorio
         uses: actions/checkout@v4
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Instalar dependencias
-        run: npm install
+        run: npm ci
 
       - name: Comprobar TypeScript
         run: npx tsc --noEmit
 
-      - name: Ejecutar Lint
+      - name: Ejecutar ESLint
         run: npm run lint
+
+  pruebas-unitarias:
+    name: Pruebas unitarias
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar pruebas unitarias
+        run: npm test -- --ci --runInBand
