@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -106,9 +106,9 @@ export function LoginForm() {
         onSubmitEditing={() => void handleSubmit()}
       />
 
-      <Text accessibilityState={{ disabled: true }} style={styles.forgotPassword}>
+      <Link href="/forgot-password" style={styles.forgotPassword}>
         Olvidé mi contraseña
-      </Text>
+      </Link>
 
       {formError ? (
         <Text accessibilityRole="alert" style={styles.formError}>

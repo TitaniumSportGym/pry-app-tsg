@@ -1,13 +1,25 @@
-import { Image } from 'expo-image';
+import { Link, useLocalSearchParams } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { StatusBar } from 'expo-status-bar';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LoginForm } from '@/components/auth/login-form';
-import { AppButton } from '@/components/ui/app-button';
+import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
 import { AppColors, AppFonts, AppFontSizes, AppSpacing } from '@/theme/tokens';
 
 export default function LoginScreen() {
+  const { accountVerified, passwordReset } = useLocalSearchParams<{
+    accountVerified?: string;
+    passwordReset?: string;
+  }>();
+  const successMessage =
+    passwordReset === '1'
+      ? 'Contraseña actualizada. Ya puedes iniciar sesión.'
+      : accountVerified === '1'
+        ? 'Cuenta activada. Ya puedes iniciar sesión.'
+        : null;
+
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
       <StatusBar style="dark" />
@@ -21,6 +33,16 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             <Text style={styles.title}>Iniciar sesión</Text>
+            {successMessage ? (
+              <View accessibilityRole="alert" style={styles.successNotice}>
+                <SymbolView
+                  name={{ ios: 'checkmark.circle.fill', android: 'check_circle', web: 'check_circle' }}
+                  size={20}
+                  tintColor={AppColors.feedback.success}
+                />
+                <Text style={styles.successText}>{successMessage}</Text>
+              </View>
+            ) : null}
             <LoginForm />
 
             <View style={styles.divider}>
@@ -29,25 +51,13 @@ export default function LoginScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            <AppButton
-              disabled
-              leftIcon={
-                <Image
-                  accessibilityLabel="Google"
-                  contentFit="contain"
-                  source={require('@/assets/images/tabIcons/googleIcon.png')}
-                  style={styles.googleIcon}
-                />
-              }
-              title="Google"
-              variant="outline"
-            />
+            <GoogleSignInButton />
 
             <View style={styles.registerRow}>
               <Text style={styles.registerPrompt}>¿No tienes cuenta?</Text>
-              <Text accessibilityState={{ disabled: true }} style={styles.registerLink}>
+              <Link href="/register" style={styles.registerLink}>
                 Regístrate
-              </Text>
+              </Link>
             </View>
           </View>
         </ScrollView>
@@ -82,6 +92,27 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 30,
   },
+  successNotice: {
+    width: '100%',
+    minHeight: 48,
+    marginBottom: AppSpacing.three,
+    borderWidth: 1,
+    borderColor: AppColors.feedback.success,
+    borderRadius: 7,
+    backgroundColor: AppColors.feedback.successSoft,
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: AppSpacing.two,
+    paddingHorizontal: 12,
+    paddingVertical: AppSpacing.two,
+  },
+  successText: {
+    flex: 1,
+    color: AppColors.feedback.success,
+    fontFamily: AppFonts.label,
+    fontSize: AppFontSizes.caption,
+    lineHeight: 18,
+  },
   divider: {
     width: '100%',
     marginVertical: 20,
@@ -99,10 +130,6 @@ const styles = StyleSheet.create({
     fontFamily: AppFonts.body,
     fontSize: AppFontSizes.caption,
     lineHeight: 16,
-  },
-  googleIcon: {
-    width: 18,
-    height: 18,
   },
   registerRow: {
     marginTop: AppSpacing.four,

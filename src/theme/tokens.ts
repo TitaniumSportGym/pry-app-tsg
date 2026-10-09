@@ -28,6 +28,8 @@ export const AppColors = {
   },
   feedback: {
     error: '#B42318',
+    success: '#16794B',
+    successSoft: '#E9F7EF',
   },
 } as const;
 
