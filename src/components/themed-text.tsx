@@ -2,6 +2,7 @@ import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
 import { Fonts, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { AppColors, AppFonts, AppFontSizes } from '@/theme/tokens';
 
 export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
@@ -32,38 +33,40 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
 
 const styles = StyleSheet.create({
   small: {
-    fontSize: 14,
+    fontFamily: AppFonts.body,
+    fontSize: AppFontSizes.label,
     lineHeight: 20,
-    fontWeight: 500,
   },
   smallBold: {
-    fontSize: 14,
+    fontFamily: AppFonts.button,
+    fontSize: AppFontSizes.label,
     lineHeight: 20,
-    fontWeight: 700,
   },
   default: {
-    fontSize: 16,
+    fontFamily: AppFonts.body,
+    fontSize: AppFontSizes.body,
     lineHeight: 24,
-    fontWeight: 500,
   },
   title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
+    fontFamily: AppFonts.display,
+    fontSize: AppFontSizes.hero,
+    lineHeight: 44,
   },
   subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
-    fontWeight: 600,
+    fontFamily: AppFonts.display,
+    fontSize: AppFontSizes.sectionTitle,
+    lineHeight: 34,
   },
   link: {
+    fontFamily: AppFonts.label,
     lineHeight: 30,
-    fontSize: 14,
+    fontSize: AppFontSizes.label,
   },
   linkPrimary: {
+    fontFamily: AppFonts.label,
     lineHeight: 30,
-    fontSize: 14,
-    color: '#3c87f7',
+    fontSize: AppFontSizes.label,
+    color: AppColors.brand.primary,
   },
   code: {
     fontFamily: Fonts.mono,
