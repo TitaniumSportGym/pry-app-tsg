@@ -7,7 +7,7 @@ import {
   restoreSession,
   verifyOtp as verifyOtpRequest,
 } from '@/services/authService';
-import { openGoogleAuthSession } from '@/features/google-auth/google-auth';
+import { openGoogleAuthSession } from '@/features/authentication/data/google-auth-gateway';
 import { removeAccessToken, saveAccessToken } from '@/services/sessionService';
 import type { LoginResponse, UserProfileResponse, UserSession } from '@/types/auth';
 
