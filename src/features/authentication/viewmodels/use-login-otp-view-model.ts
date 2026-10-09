@@ -26,6 +26,7 @@ export function useLoginOtpViewModel(email?: string) {
     setIsSubmitting(true);
     try {
       await confirmOtp(email, otp);
+      router.replace('/');
     } catch (verificationError) {
       setError(
         verificationError instanceof ApiError

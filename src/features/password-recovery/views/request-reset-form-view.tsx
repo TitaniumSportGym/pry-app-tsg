@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { AppButton } from "@/components/ui/app-button";
+import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
 import { AppInput } from "@/components/ui/app-input";
 import { useRequestResetViewModel } from "@/features/password-recovery/viewmodels/use-request-reset-view-model";
 import { AppColors, AppFonts, AppFontSizes, AppSpacing } from "@/theme/tokens";
@@ -29,7 +29,7 @@ export function RequestResetFormView() {
           {viewModel.formError}
         </Text>
       ) : null}
-      <AppButton
+      <AuthSubmitButton
         loading={viewModel.isSubmitting}
         title="Enviar código"
         onPress={() => void viewModel.submit()}

@@ -1,14 +1,7 @@
-import { StatusBar } from "expo-status-bar";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { StyleSheet, Text, View } from "react-native";
 
-import { AppButton } from "@/components/ui/app-button";
+import { AuthFormScreen } from "@/components/auth/auth-form-screen";
+import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
 import { AppInput } from "@/components/ui/app-input";
 import { useLoginOtpViewModel } from "@/features/authentication/viewmodels/use-login-otp-view-model";
 import { AppColors, AppFonts, AppSpacing } from "@/theme/tokens";
@@ -20,17 +13,12 @@ interface LoginOtpViewProps {
 export function LoginOtpView({ email }: LoginOtpViewProps) {
   const viewModel = useLoginOtpViewModel(email);
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.keyboardView}
-      >
-        <View style={styles.content}>
-          <Text style={styles.title}>Verificar código</Text>
-          <Text style={styles.description}>
-            Ingresa el código enviado a {email ?? "tu correo"}.
-          </Text>
+    <AuthFormScreen
+      compact
+      description={`Ingresa el código enviado a ${email ?? "tu correo"}.`}
+      fallbackHref="/login"
+      title="VERIFICA TU ACCESO">
+      <View style={styles.form}>
           <AppInput
             autoComplete="one-time-code"
             error={viewModel.error ?? undefined}
@@ -44,7 +32,7 @@ export function LoginOtpView({ email }: LoginOtpViewProps) {
             onChangeText={viewModel.setOtp}
             onSubmitEditing={() => void viewModel.submit()}
           />
-          <AppButton
+          <AuthSubmitButton
             loading={viewModel.isSubmitting}
             title="Verificar"
             onPress={() => void viewModel.submit()}
@@ -56,36 +44,13 @@ export function LoginOtpView({ email }: LoginOtpViewProps) {
           >
             Volver al inicio de sesión
           </Text>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </View>
+    </AuthFormScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: AppColors.surface.soft },
-  keyboardView: { flex: 1, justifyContent: "center" },
-  content: {
-    width: "100%",
-    maxWidth: 420,
-    alignSelf: "center",
-    gap: AppSpacing.three,
-    paddingHorizontal: AppSpacing.four,
-    paddingVertical: AppSpacing.five,
-  },
-  title: {
-    color: AppColors.neutral.text,
-    fontFamily: AppFonts.emphasis,
-    fontSize: 24,
-    lineHeight: 30,
-  },
-  description: {
-    marginBottom: AppSpacing.two,
-    color: AppColors.neutral.muted,
-    fontFamily: AppFonts.body,
-    fontSize: 14,
-    lineHeight: 21,
-  },
+  form: { width: "100%", gap: AppSpacing.three },
   backLink: {
     color: AppColors.brand.primary,
     fontFamily: AppFonts.label,

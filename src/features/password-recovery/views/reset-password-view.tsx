@@ -4,9 +4,10 @@ import { ResetPasswordFormView } from "@/features/password-recovery/views/reset-
 export function ResetPasswordView() {
   return (
     <AuthFormScreen
+      compact
       description="Crea una contraseña nueva y segura para volver a ingresar."
       fallbackHref="/forgot-password"
-      title="Nueva contraseña"
+      title="NUEVA CONTRASEÑA"
     >
       <ResetPasswordFormView />
     </AuthFormScreen>

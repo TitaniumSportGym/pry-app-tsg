@@ -41,7 +41,10 @@ export function useLoginViewModel() {
           pathname: "/verify-otp",
           params: { email: normalizedEmail },
         });
+        return;
       }
+
+      router.replace('/');
     } catch (error) {
       setFormError(getLoginErrorMessage(error));
     } finally {

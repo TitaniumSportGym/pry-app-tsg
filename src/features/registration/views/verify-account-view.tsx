@@ -8,9 +8,10 @@ interface VerifyAccountViewProps {
 export function VerifyAccountView({ email }: VerifyAccountViewProps) {
   return (
     <AuthFormScreen
+      compact
       description="Escribe el código que enviamos para activar tu cuenta."
       fallbackHref="/register"
-      title="Verifica tu correo"
+      title="VERIFICA TU CORREO"
     >
       <AccountVerificationFormView email={email} />
     </AuthFormScreen>

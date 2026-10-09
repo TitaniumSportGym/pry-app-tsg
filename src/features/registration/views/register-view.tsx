@@ -8,9 +8,9 @@ import { AppColors, AppFonts, AppFontSizes, AppSpacing } from "@/theme/tokens";
 export function RegisterView() {
   return (
     <AuthFormScreen
-      description="Usa tu correo y crea una contraseña segura para comenzar."
+      description="Crea tu acceso en pocos pasos y comienza a entrenar."
       fallbackHref="/login"
-      title="Crear cuenta"
+      title="CREA TU CUENTA"
     >
       <RegistrationFormView />
       <View style={styles.loginRow}>

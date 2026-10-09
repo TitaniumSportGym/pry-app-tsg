@@ -91,11 +91,11 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     width: '100%',
-    height: 52,
+    height: 56,
     borderWidth: 1,
-    borderColor: AppColors.border.default,
-    borderRadius: 7,
-    backgroundColor: AppColors.surface.default,
+    borderColor: 'transparent',
+    borderRadius: 8,
+    backgroundColor: '#F3F3F4',
     alignItems: 'center',
     flexDirection: 'row',
     gap: AppSpacing.two,
@@ -103,9 +103,11 @@ const styles = StyleSheet.create({
   },
   inputContainerFocused: {
     borderColor: AppColors.brand.primary,
+    backgroundColor: AppColors.surface.soft,
   },
   inputContainerError: {
     borderColor: AppColors.feedback.error,
+    backgroundColor: AppColors.surface.soft,
   },
   input: {
     minWidth: 0,

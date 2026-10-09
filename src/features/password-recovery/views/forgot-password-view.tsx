@@ -4,9 +4,10 @@ import { RequestResetFormView } from "@/features/password-recovery/views/request
 export function ForgotPasswordView() {
   return (
     <AuthFormScreen
+      compact
       description="Ingresa tu correo y te enviaremos un código para recuperar el acceso."
       fallbackHref="/login"
-      title="Recuperar contraseña"
+      title="RECUPERA TU CUENTA"
     >
       <RequestResetFormView />
     </AuthFormScreen>

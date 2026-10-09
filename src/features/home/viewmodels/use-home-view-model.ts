@@ -1,19 +1,19 @@
-import { useState } from "react";
+import { router } from 'expo-router';
 
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from '@/hooks/use-auth';
 
 export function useHomeViewModel() {
-  const { user, signOut } = useAuth();
-  const [isSigningOut, setIsSigningOut] = useState(false);
+  const { status, user } = useAuth();
+  const isAuthenticated = status === 'authenticated';
 
-  async function logout() {
-    setIsSigningOut(true);
-    try {
-      await signOut();
-    } finally {
-      setIsSigningOut(false);
-    }
-  }
-
-  return { email: user?.email ?? "Usuario", isSigningOut, logout };
+  return {
+    isAuthenticated,
+    displayName: user?.email?.split('@')[0] ?? 'invitado',
+    openPrimaryAction() {
+      router.push(isAuthenticated ? '/account' : '/login');
+    },
+    openRegister() {
+      router.push('/register');
+    },
+  };
 }

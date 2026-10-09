@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
-import { AppButton } from "@/components/ui/app-button";
+import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
 import { AppInput } from "@/components/ui/app-input";
 import { PasswordRequirementsView } from "@/features/authentication/views/password-requirements-view";
 import { useRegistrationViewModel } from "@/features/registration/viewmodels/use-registration-view-model";
@@ -67,7 +67,7 @@ export function RegistrationFormView() {
           {viewModel.formError}
         </Text>
       ) : null}
-      <AppButton
+      <AuthSubmitButton
         loading={viewModel.isSubmitting}
         title="Crear cuenta"
         onPress={() => void viewModel.submit()}

@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
+import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
 import { AppButton } from "@/components/ui/app-button";
 import { AppInput } from "@/components/ui/app-input";
 import { useAccountVerificationViewModel } from "@/features/registration/viewmodels/use-account-verification-view-model";
@@ -45,7 +46,7 @@ export function AccountVerificationFormView({
           {viewModel.statusMessage}
         </Text>
       ) : null}
-      <AppButton
+      <AuthSubmitButton
         disabled={!viewModel.email || viewModel.isResending}
         loading={viewModel.isSubmitting}
         title="Verificar correo"

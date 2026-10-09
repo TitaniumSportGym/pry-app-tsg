@@ -1,7 +1,6 @@
-import { Link } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
-import { AppButton } from "@/components/ui/app-button";
+import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
 import { AppInput } from "@/components/ui/app-input";
 import { useLoginViewModel } from "@/features/authentication/viewmodels/use-login-view-model";
 import { AppColors, AppFonts, AppFontSizes, AppSpacing } from "@/theme/tokens";
@@ -38,15 +37,12 @@ export function LoginFormView() {
         onChangeText={viewModel.setPassword}
         onSubmitEditing={() => void viewModel.submit()}
       />
-      <Link href="/forgot-password" style={styles.forgotPassword}>
-        Olvidé mi contraseña
-      </Link>
       {viewModel.formError ? (
         <Text accessibilityRole="alert" style={styles.formError}>
           {viewModel.formError}
         </Text>
       ) : null}
-      <AppButton
+      <AuthSubmitButton
         loading={viewModel.isSubmitting}
         title="Iniciar sesión"
         onPress={() => void viewModel.submit()}
@@ -57,15 +53,6 @@ export function LoginFormView() {
 
 const styles = StyleSheet.create({
   form: { width: "100%", gap: AppSpacing.three },
-  forgotPassword: {
-    alignSelf: "flex-end",
-    marginTop: -4,
-    color: AppColors.brand.primary,
-    fontFamily: AppFonts.label,
-    fontSize: AppFontSizes.caption,
-    lineHeight: 18,
-    textDecorationLine: "underline",
-  },
   formError: {
     marginTop: -4,
     color: AppColors.feedback.error,

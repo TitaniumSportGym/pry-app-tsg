@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from "react";
 
 import { GoogleAuthError } from "@/features/authentication/models/google-auth-callback";
@@ -12,7 +13,8 @@ export function useGoogleSignInViewModel() {
     setError(null);
     setIsSubmitting(true);
     try {
-      await signInWithGoogle();
+      const authenticated = await signInWithGoogle();
+      if (authenticated) router.replace('/');
     } catch (authError) {
       setError(
         authError instanceof GoogleAuthError

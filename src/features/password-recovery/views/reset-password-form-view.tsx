@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
-import { AppButton } from "@/components/ui/app-button";
+import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
 import { AppInput } from "@/components/ui/app-input";
 import { PasswordRequirementsView } from "@/features/authentication/views/password-requirements-view";
 import { useResetPasswordViewModel } from "@/features/password-recovery/viewmodels/use-reset-password-view-model";
@@ -17,7 +17,7 @@ export function ResetPasswordFormView() {
         <Text accessibilityRole="alert" style={styles.formError}>
           Faltan los datos de recuperación. Solicita un código nuevamente.
         </Text>
-        <AppButton title="Solicitar código" onPress={viewModel.restart} />
+        <AuthSubmitButton title="Solicitar código" onPress={viewModel.restart} />
       </View>
     );
   }
@@ -61,7 +61,7 @@ export function ResetPasswordFormView() {
           {viewModel.formError}
         </Text>
       ) : null}
-      <AppButton
+      <AuthSubmitButton
         loading={viewModel.isSubmitting}
         title="Cambiar contraseña"
         onPress={() => void viewModel.submit()}

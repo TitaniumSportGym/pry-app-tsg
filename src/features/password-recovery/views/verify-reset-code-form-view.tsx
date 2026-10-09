@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
+import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
 import { AppButton } from "@/components/ui/app-button";
 import { AppInput } from "@/components/ui/app-input";
 import { useVerifyResetCodeViewModel } from "@/features/password-recovery/viewmodels/use-verify-reset-code-view-model";
@@ -14,7 +15,7 @@ export function VerifyResetCodeFormView() {
         <Text accessibilityRole="alert" style={styles.formError}>
           Faltan los datos de recuperación. Solicita un código nuevamente.
         </Text>
-        <AppButton title="Solicitar código" onPress={viewModel.restart} />
+        <AuthSubmitButton title="Solicitar código" onPress={viewModel.restart} />
       </View>
     );
   }
@@ -51,7 +52,7 @@ export function VerifyResetCodeFormView() {
           {viewModel.statusMessage}
         </Text>
       ) : null}
-      <AppButton
+      <AuthSubmitButton
         disabled={viewModel.isResending}
         loading={viewModel.isSubmitting}
         title="Verificar código"
