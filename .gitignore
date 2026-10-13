@@ -45,3 +45,6 @@ example
 
 # reassure
 .reassure/
+
+# jest coverage
+coverage/
