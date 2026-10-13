@@ -47,10 +47,8 @@ function RootNavigator() {
   return (
     <View style={styles.app}>
       {sessionReady ? (
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Protected guard={status === 'authenticated'}>
-            <Stack.Screen name="(app)" />
-          </Stack.Protected>
+        <Stack initialRouteName="(app)" screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(app)" />
           <Stack.Protected guard={status === 'unauthenticated'}>
             <Stack.Screen name="(auth)" />
           </Stack.Protected>

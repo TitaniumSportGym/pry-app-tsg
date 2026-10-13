@@ -59,12 +59,37 @@ npx tsc --noEmit
 ## Estructura principal
 
 ```text
-src/app/          Pantallas y layouts de Expo Router
-src/components/   Componentes reutilizables
-src/constants/    Constantes de la aplicacion
-src/hooks/        Hooks personalizados
-assets/           Imagenes, iconos y recursos visuales
+src/
+|-- app/                    Rutas y layouts delgados de Expo Router
+|-- components/             Componentes visuales reutilizables
+|-- features/
+|   |-- authentication/
+|   |-- registration/
+|   |-- password-recovery/
+|   `-- home/
+|       |-- models/         Reglas, tipos y validaciones de dominio
+|       |-- viewmodels/     Estado y acciones de cada pantalla
+|       |-- views/          Interfaz y composicion visual
+|       |-- api/            Adaptadores HTTP, cuando la funcion los necesita
+|       `-- data/           Adaptadores de infraestructura no HTTP
+|-- providers/              Estado global, como la sesion autenticada
+|-- services/               Cliente HTTP, sesion segura y servicios existentes
+|-- theme/                  Tokens globales de diseno
+`-- types/                  Contratos compartidos con el backend
+
+assets/                     Imagenes, iconos y recursos visuales
 ```
+
+## Arquitectura MVVM
+
+Las funcionalidades de la aplicacion siguen MVVM organizado por feature:
+
+- **Model:** valida y representa las reglas del dominio sin renderizar interfaz.
+- **ViewModel:** es un hook `use-*-view-model` que administra estado, ejecuta casos de uso y decide la navegacion posterior.
+- **View:** renderiza componentes y delega los eventos al ViewModel.
+- **Route:** obtiene parametros de Expo Router y monta la View correspondiente.
+
+Las Views no deben importar `services/` ni `api/` directamente. Los ViewModels pueden usar esas capas y los Models deben mantenerse independientes de React siempre que no representen estado compartido. Los componentes de `src/components` no contienen reglas de una funcionalidad concreta.
 
 ## Notas
 

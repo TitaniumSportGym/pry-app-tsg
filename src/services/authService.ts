@@ -2,7 +2,13 @@ import {
     ApiError,
     type AuthResult,
     type LoginResponse,
+    type RegisterRequest,
+    type RegisterResponse,
+    type ResendVerificationOtpRequest,
+    type ResendVerificationOtpResponse,
     type UserProfileResponse,
+    type VerifyAccountOtpRequest,
+    type VerifyAccountOtpResponse,
 } from "../types/auth";
 import { apiRequest, shouldInvalidateSession } from "./apiClient";
 import {
@@ -10,6 +16,47 @@ import {
     removeAccessToken,
     saveAccessToken,
 } from "./sessionService";
+
+export async function registerMobile(
+  email: string,
+  password: string,
+): Promise<RegisterResponse> {
+  const body: RegisterRequest = { email, password, client: "mobile" };
+
+  return apiRequest<RegisterResponse>("/api/auth/register", {
+    method: "POST",
+    body,
+    auth: false,
+  });
+}
+
+export async function verifyAccountOtp(
+  email: string,
+  otp: string,
+): Promise<VerifyAccountOtpResponse> {
+  const body: VerifyAccountOtpRequest = { email, otp };
+
+  return apiRequest<VerifyAccountOtpResponse>("/api/auth/verify-account-otp", {
+    method: "POST",
+    body,
+    auth: false,
+  });
+}
+
+export async function resendVerificationOtp(
+  email: string,
+): Promise<ResendVerificationOtpResponse> {
+  const body: ResendVerificationOtpRequest = { email };
+
+  return apiRequest<ResendVerificationOtpResponse>(
+    "/api/auth/resend-verification-otp",
+    {
+      method: "POST",
+      body,
+      auth: false,
+    },
+  );
+}
 
 export async function login(
   email: string,

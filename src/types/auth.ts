@@ -25,6 +25,25 @@ export interface VerifyOtpRequest {
   otp: string;
 }
 
+export interface RegisterRequest extends LoginCredentials {
+  client: "mobile";
+}
+
+export interface AuthMessageResponse {
+  message: string;
+}
+
+export type RegisterResponse = AuthMessageResponse;
+
+export type VerifyAccountOtpRequest = VerifyOtpRequest;
+export type VerifyAccountOtpResponse = AuthMessageResponse;
+
+export interface ResendVerificationOtpRequest {
+  email: string;
+}
+
+export type ResendVerificationOtpResponse = AuthMessageResponse;
+
 export interface UserProfileResponse extends UserSession {
   authMethod?: string;
   provider?: string;

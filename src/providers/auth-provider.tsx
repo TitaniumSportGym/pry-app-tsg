@@ -7,6 +7,8 @@ import {
   restoreSession,
   verifyOtp as verifyOtpRequest,
 } from '@/services/authService';
+import { openGoogleAuthSession } from '@/features/authentication/data/google-auth-gateway';
+import { removeAccessToken, saveAccessToken } from '@/services/sessionService';
 import type { LoginResponse, UserProfileResponse, UserSession } from '@/types/auth';
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
@@ -16,6 +18,7 @@ export interface AuthContextValue {
   user: UserProfileResponse | UserSession | null;
   signIn: (email: string, password: string) => Promise<LoginResponse>;
   confirmOtp: (email: string, otp: string) => Promise<LoginResponse>;
+  signInWithGoogle: () => Promise<boolean>;
   signOut: () => Promise<void>;
 }
 
@@ -91,6 +94,25 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [completeAuthentication],
   );
 
+  const signInWithGoogle = useCallback(async () => {
+    const accessToken = await openGoogleAuthSession();
+
+    if (!accessToken) {
+      return false;
+    }
+
+    try {
+      await saveAccessToken(accessToken);
+      const authenticatedUser = await getCurrentUser();
+      setUser(authenticatedUser);
+      setStatus('authenticated');
+      return true;
+    } catch (error) {
+      await removeAccessToken();
+      throw error;
+    }
+  }, []);
+
   const signOut = useCallback(async () => {
     setUser(null);
     setStatus('unauthenticated');
@@ -103,8 +125,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   const value = useMemo(
-    () => ({ status, user, signIn, confirmOtp, signOut }),
-    [confirmOtp, signIn, signOut, status, user],
+    () => ({ status, user, signIn, confirmOtp, signInWithGoogle, signOut }),
+    [confirmOtp, signIn, signInWithGoogle, signOut, status, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
