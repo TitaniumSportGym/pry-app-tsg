@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { SymbolView } from 'expo-symbols';
 
 import { AppColors, AppFonts, AppFontSizes, AppSpacing } from '@/theme/tokens';
 
@@ -10,6 +11,9 @@ interface AppSectionScreenProps {
   description: string;
   eyebrow?: string;
   title: string;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+  onBack?: () => void;
 }
 
 export function AppSectionScreen({
@@ -17,14 +21,41 @@ export function AppSectionScreen({
   description,
   eyebrow = 'TITANIUM SPORT GYM',
   title,
+  refreshing = false,
+  onRefresh,
+  onBack,
 }: AppSectionScreenProps) {
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <StatusBar style="light" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              colors={[AppColors.brand.primary]}
+              refreshing={refreshing}
+              tintColor={AppColors.neutral.white}
+              onRefresh={onRefresh}
+            />
+          ) : undefined
+        }
         showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
+          {onBack ? (
+            <Pressable
+              accessibilityLabel="Regresar"
+              accessibilityRole="button"
+              hitSlop={12}
+              style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+              onPress={onBack}>
+              <SymbolView
+                name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
+                size={22}
+                tintColor={AppColors.neutral.white}
+              />
+            </Pressable>
+          ) : null}
           <Text style={styles.eyebrow}>{eyebrow}</Text>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.description}>{description}</Text>
@@ -37,6 +68,15 @@ export function AppSectionScreen({
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: AppColors.brand.primary },
+  backButton: {
+    width: 40,
+    height: 40,
+    marginBottom: AppSpacing.two,
+    marginLeft: -AppSpacing.two,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pressed: { opacity: 0.7 },
   scrollContent: {
     flexGrow: 1,
     backgroundColor: AppColors.surface.soft,
@@ -74,6 +114,7 @@ const styles = StyleSheet.create({
     maxWidth: 680,
     flex: 1,
     alignSelf: 'center',
+    gap: AppSpacing.three,
     padding: AppSpacing.four,
   },
 });

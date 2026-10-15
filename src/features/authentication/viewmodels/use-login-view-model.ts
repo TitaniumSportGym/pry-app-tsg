@@ -6,6 +6,7 @@ import {
   type LoginFieldErrors,
   validateLogin,
 } from "@/features/authentication/models/login-model";
+import { getRoleHome } from "@/features/authorization/models/user-role";
 import { useAuth } from "@/hooks/use-auth";
 
 export function useLoginViewModel() {
@@ -35,8 +36,8 @@ export function useLoginViewModel() {
 
     setIsSubmitting(true);
     try {
-      const response = await signIn(normalizedEmail, password);
-      if (response.twoFactorRequired) {
+      const outcome = await signIn(normalizedEmail, password);
+      if (outcome.status === "two-factor-required") {
         router.push({
           pathname: "/verify-otp",
           params: { email: normalizedEmail },
@@ -44,7 +45,7 @@ export function useLoginViewModel() {
         return;
       }
 
-      router.replace('/');
+      router.replace(getRoleHome(outcome.role));
     } catch (error) {
       setFormError(getLoginErrorMessage(error));
     } finally {

@@ -8,17 +8,30 @@ import {
   verifyOtp as verifyOtpRequest,
 } from '@/services/authService';
 import { openGoogleAuthSession } from '@/features/authentication/data/google-auth-gateway';
+import {
+  parseUserRole,
+  UnsupportedRoleError,
+  type UserRole,
+} from '@/features/authorization/models/user-role';
 import { removeAccessToken, saveAccessToken } from '@/services/sessionService';
 import type { LoginResponse, UserProfileResponse, UserSession } from '@/types/auth';
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
+type AuthenticatedUser = UserProfileResponse | UserSession;
+
+export type AuthOutcome =
+  | { status: 'two-factor-required' }
+  | { status: 'authenticated'; role: UserRole };
+
 export interface AuthContextValue {
   status: AuthStatus;
-  user: UserProfileResponse | UserSession | null;
-  signIn: (email: string, password: string) => Promise<LoginResponse>;
-  confirmOtp: (email: string, otp: string) => Promise<LoginResponse>;
-  signInWithGoogle: () => Promise<boolean>;
+  user: AuthenticatedUser | null;
+  role: UserRole | null;
+  signIn: (email: string, password: string) => Promise<AuthOutcome>;
+  confirmOtp: (email: string, otp: string) => Promise<AuthOutcome>;
+  /** Resolves with the user's role, or null when the user cancels Google. */
+  signInWithGoogle: () => Promise<UserRole | null>;
   signOut: () => Promise<void>;
 }
 
@@ -26,7 +39,7 @@ export const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<AuthStatus>('loading');
-  const [user, setUser] = useState<UserProfileResponse | UserSession | null>(null);
+  const [user, setUser] = useState<AuthenticatedUser | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -40,6 +53,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
 
         if (result.authenticated && result.user) {
+          if (!parseUserRole(result.user.rol)) {
+            await revokeSession();
+
+            if (isMounted) {
+              setUser(null);
+              setStatus('unauthenticated');
+            }
+            return;
+          }
+
           setUser(result.user);
           setStatus('authenticated');
           return;
@@ -62,21 +85,38 @@ export function AuthProvider({ children }: PropsWithChildren) {
     };
   }, []);
 
-  const completeAuthentication = useCallback(async (response: LoginResponse) => {
-    if (response.twoFactorRequired) {
-      return response;
+  // The role always comes from the server response, never from local storage.
+  const acceptUser = useCallback(async (authenticatedUser: AuthenticatedUser) => {
+    const role = parseUserRole(authenticatedUser.rol);
+
+    if (!role) {
+      await revokeSession();
+      throw new UnsupportedRoleError();
     }
 
-    if (!response.accessToken) {
-      throw new Error('El servidor no devolvió una sesión válida.');
-    }
-
-    const authenticatedUser = response.user ?? (await getCurrentUser());
     setUser(authenticatedUser);
     setStatus('authenticated');
 
-    return response;
+    return role;
   }, []);
+
+  const completeAuthentication = useCallback(
+    async (response: LoginResponse): Promise<AuthOutcome> => {
+      if (response.twoFactorRequired) {
+        return { status: 'two-factor-required' };
+      }
+
+      if (!response.accessToken) {
+        throw new Error('El servidor no devolvió una sesión válida.');
+      }
+
+      const authenticatedUser = response.user ?? (await getCurrentUser());
+      const role = await acceptUser(authenticatedUser);
+
+      return { status: 'authenticated', role };
+    },
+    [acceptUser],
+  );
 
   const signIn = useCallback(
     async (email: string, password: string) => {
@@ -98,20 +138,21 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const accessToken = await openGoogleAuthSession();
 
     if (!accessToken) {
-      return false;
+      return null;
     }
+
+    let authenticatedUser: UserProfileResponse;
 
     try {
       await saveAccessToken(accessToken);
-      const authenticatedUser = await getCurrentUser();
-      setUser(authenticatedUser);
-      setStatus('authenticated');
-      return true;
+      authenticatedUser = await getCurrentUser();
     } catch (error) {
       await removeAccessToken();
       throw error;
     }
-  }, []);
+
+    return acceptUser(authenticatedUser);
+  }, [acceptUser]);
 
   const signOut = useCallback(async () => {
     setUser(null);
@@ -124,10 +165,21 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   }, []);
 
+  const role = status === 'authenticated' ? parseUserRole(user?.rol) : null;
+
   const value = useMemo(
-    () => ({ status, user, signIn, confirmOtp, signInWithGoogle, signOut }),
-    [confirmOtp, signIn, signInWithGoogle, signOut, status, user],
+    () => ({ status, user, role, signIn, confirmOtp, signInWithGoogle, signOut }),
+    [confirmOtp, role, signIn, signInWithGoogle, signOut, status, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+/** Closes the session on the server and removes the stored token. */
+async function revokeSession() {
+  try {
+    await logoutRequest();
+  } catch {
+    // logout already removes the local token; storage failures leave nothing more to do.
+  }
 }

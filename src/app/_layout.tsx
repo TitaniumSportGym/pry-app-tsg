@@ -11,6 +11,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { AppSplashScreen } from '@/components/splash/app-splash-screen';
+import { getAccessibleAreas, getRoleRouteGroup } from '@/features/authorization/models/user-role';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthProvider } from '@/providers/auth-provider';
 import { AppFonts } from '@/theme/tokens';
@@ -41,15 +42,24 @@ export default function RootLayout() {
 }
 
 function RootNavigator() {
-  const { status } = useAuth();
+  const { status, role } = useAuth();
   const sessionReady = status !== 'loading';
+  const areas = getAccessibleAreas(status === 'authenticated', role);
 
   return (
     <View style={styles.app}>
       {sessionReady ? (
-        <Stack initialRouteName="(app)" screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(app)" />
-          <Stack.Protected guard={status === 'unauthenticated'}>
+        <Stack initialRouteName={getRoleRouteGroup(role)} screenOptions={{ headerShown: false }}>
+          <Stack.Protected guard={areas.client}>
+            <Stack.Screen name="(app)" />
+          </Stack.Protected>
+          <Stack.Protected guard={areas.trainer}>
+            <Stack.Screen name="trainer" />
+          </Stack.Protected>
+          <Stack.Protected guard={areas.admin}>
+            <Stack.Screen name="admin" />
+          </Stack.Protected>
+          <Stack.Protected guard={areas.auth}>
             <Stack.Screen name="(auth)" />
           </Stack.Protected>
         </Stack>
