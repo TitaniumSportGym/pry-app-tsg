@@ -42,3 +42,9 @@ example
 /ios
 /android
 .env
+
+# reassure
+.reassure/
+
+# jest coverage
+coverage/
