@@ -14,7 +14,7 @@ on:
 
 jobs:
   analisis-estatico:
-    name: Análisis estático
+    name: Análisis estático (ESLint y TypeScript)
     runs-on: ubuntu-latest
 
     steps:
@@ -36,8 +36,20 @@ jobs:
       - name: Ejecutar ESLint
         run: npm run lint
 
+      - name: Generar reporte de ESLint
+        if: always()
+        run: npx eslint src tests --format json --output-file eslint-report.json || true
+
+      - name: Subir reporte de ESLint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-eslint
+          path: eslint-report.json
+          retention-days: 14
+
   pruebas-unitarias:
-    name: Pruebas unitarias
+    name: Pruebas unitarias (Jest y RNTL)
     runs-on: ubuntu-latest
 
     steps:
@@ -54,4 +66,123 @@ jobs:
         run: npm ci
 
       - name: Ejecutar pruebas unitarias
-        run: npm test -- --ci --runInBand
+        run: npm run test:unit -- --ci --runInBand --coverage --coverageDirectory=coverage/unitarias
+
+      - name: Subir cobertura de pruebas unitarias
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-unitarias
+          path: coverage/unitarias
+          retention-days: 14
+
+  pruebas-integracion:
+    name: Pruebas de integración (Jest y RNTL)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar pruebas de integración
+        run: npm run test:integration -- --ci --runInBand --coverage --coverageDirectory=coverage/integracion
+
+      - name: Subir cobertura de pruebas de integración
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-integracion
+          path: coverage/integracion
+          retention-days: 14
+
+  pruebas-regresion:
+    name: Pruebas de regresión (suite completa)
+    needs: [analisis-estatico, pruebas-unitarias, pruebas-integracion]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar todas las pruebas existentes
+        run: npm test -- --ci --runInBand --coverage --coverageDirectory=coverage/regresion
+
+      - name: Subir cobertura de la suite completa
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-regresion
+          path: coverage/regresion
+          retention-days: 14
+
+  pruebas-rendimiento:
+    name: Pruebas de rendimiento (Reassure)
+    needs: [pruebas-regresion]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener código del repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Medir línea base de la rama destino
+        run: |
+          BASE_BRANCH="${GITHUB_BASE_REF:-main}"
+          CURRENT_SHA="$(git rev-parse HEAD)"
+          git switch --detach "origin/$BASE_BRANCH"
+          if grep -q '"reassure"' package.json; then
+            npm ci
+            npx reassure --baseline || echo "::warning::No se pudo medir la línea base de $BASE_BRANCH."
+          else
+            echo "::notice::$BASE_BRANCH todavía no tiene Reassure; se omite la comparación."
+          fi
+          git switch --detach "$CURRENT_SHA"
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Medir rama actual y comparar
+        run: npx reassure --branch "${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+
+      - name: Publicar resultados
+        if: always()
+        run: |
+          if [ -f .reassure/output.md ]; then
+            cat .reassure/output.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Sin línea base para comparar; las mediciones actuales quedaron registradas en el log." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Subir reporte de rendimiento
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-rendimiento
+          path: .reassure
+          include-hidden-files: true
+          retention-days: 14
