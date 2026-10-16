@@ -2,6 +2,10 @@ import { router } from "expo-router";
 import { useState } from "react";
 
 import { normalizeOtp } from "@/features/authentication/models/auth-validation";
+import {
+  getRoleHome,
+  UnsupportedRoleError,
+} from "@/features/authorization/models/user-role";
 import { useAuth } from "@/hooks/use-auth";
 import { ApiError } from "@/types/auth";
 
@@ -25,11 +29,14 @@ export function useLoginOtpViewModel(email?: string) {
     setError(null);
     setIsSubmitting(true);
     try {
-      await confirmOtp(email, otp);
-      router.replace('/');
+      const outcome = await confirmOtp(email, otp);
+      if (outcome.status === "authenticated") {
+        router.replace(getRoleHome(outcome.role));
+      }
     } catch (verificationError) {
       setError(
-        verificationError instanceof ApiError
+        verificationError instanceof ApiError ||
+          verificationError instanceof UnsupportedRoleError
           ? verificationError.message
           : "No fue posible verificar el código. Inténtalo de nuevo.",
       );

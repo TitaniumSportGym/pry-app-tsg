@@ -1,4 +1,5 @@
 import { validateEmail } from "@/features/authentication/models/auth-validation";
+import { UnsupportedRoleError } from "@/features/authorization/models/user-role";
 import { ApiError } from "@/types/auth";
 
 export interface LoginFieldErrors {
@@ -22,6 +23,10 @@ export function validateLogin(emailValue: string, password: string) {
 }
 
 export function getLoginErrorMessage(error: unknown) {
+  if (error instanceof UnsupportedRoleError) {
+    return error.message;
+  }
+
   if (error instanceof ApiError) {
     return error.status === 401
       ? "Correo o contraseña incorrectos."

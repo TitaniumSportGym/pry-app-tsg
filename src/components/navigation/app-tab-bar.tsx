@@ -1,3 +1,4 @@
+import type { Href } from 'expo-router';
 import {
   Tabs,
   TabList,
@@ -12,45 +13,33 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppColors, AppFonts, AppSpacing } from '@/theme/tokens';
 
+export interface AppTab {
+  name: string;
+  href: Href;
+  label: string;
+  icon: SymbolViewProps['name'];
+}
+
+interface AppTabBarProps {
+  tabs: readonly AppTab[];
+}
+
 interface AppTabButtonProps extends TabTriggerSlotProps {
   icon: SymbolViewProps['name'];
   label: string;
 }
 
-export function AppTabBar() {
+export function AppTabBar({ tabs }: AppTabBarProps) {
   return (
     <Tabs>
       <TabSlot style={styles.slot} />
       <TabList asChild>
         <TabBarContainer>
-          <TabTrigger name="home" href="/" resetOnFocus asChild>
-            <AppTabButton
-              icon={{ ios: 'house.fill', android: 'home', web: 'home' }}
-              label="Inicio"
-            />
-          </TabTrigger>
-          <TabTrigger name="services" href="/services" resetOnFocus asChild>
-            <AppTabButton
-              icon={{ ios: 'square.grid.2x2.fill', android: 'apps', web: 'apps' }}
-              label="Servicios"
-            />
-          </TabTrigger>
-          <TabTrigger name="training" href="/training" resetOnFocus asChild>
-            <AppTabButton
-              icon={{ ios: 'dumbbell.fill', android: 'fitness_center', web: 'fitness_center' }}
-              label="Entrena"
-            />
-          </TabTrigger>
-          <TabTrigger name="account" href="/account" resetOnFocus asChild>
-            <AppTabButton
-              icon={{
-                ios: 'person.crop.circle.fill',
-                android: 'account_circle',
-                web: 'account_circle',
-              }}
-              label="Cuenta"
-            />
-          </TabTrigger>
+          {tabs.map((tab) => (
+            <TabTrigger key={tab.name} name={tab.name} href={tab.href} resetOnFocus asChild>
+              <AppTabButton icon={tab.icon} label={tab.label} />
+            </TabTrigger>
+          ))}
         </TabBarContainer>
       </TabList>
     </Tabs>
