@@ -1,9 +1,10 @@
 import { SymbolView } from 'expo-symbols';
 import { StatusBar } from 'expo-status-bar';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui/app-button';
+import { InfoListCard } from '@/components/ui/info-list-card';
 import { useAccountViewModel } from '@/features/account/viewmodels/use-account-view-model';
 import { AppColors, AppFonts, AppFontSizes, AppSpacing } from '@/theme/tokens';
 
@@ -54,6 +55,20 @@ export function AccountView() {
                   </Text>
                 </View>
               </View>
+
+              {viewModel.showMembershipsLink ? (
+                <Pressable
+                  accessibilityLabel="Membresías"
+                  accessibilityRole="link"
+                  style={({ pressed }) => pressed && styles.pressed}
+                  onPress={viewModel.openMemberships}>
+                  <InfoListCard
+                    icon={{ ios: 'creditcard.fill', android: 'card_membership', web: 'card_membership' }}
+                    title="Membresías"
+                    description="Consulta los planes del gimnasio para orientar a tus clientes."
+                  />
+                </Pressable>
+              ) : null}
 
               <AppButton
                 leftIcon={
@@ -116,4 +131,5 @@ const styles = StyleSheet.create({
   guestTitle: { marginTop: AppSpacing.four, color: AppColors.neutral.text, fontFamily: AppFonts.emphasis, fontSize: 22, lineHeight: 28, textAlign: 'center' },
   guestDescription: { maxWidth: 340, marginTop: AppSpacing.two, color: AppColors.neutral.muted, fontFamily: AppFonts.body, fontSize: AppFontSizes.label, lineHeight: 22, textAlign: 'center' },
   actions: { width: '100%', marginTop: AppSpacing.four, gap: 10 },
+  pressed: { opacity: 0.7 },
 });

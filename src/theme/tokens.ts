@@ -16,6 +16,7 @@ export const AppColors = {
     default: '#FFFFFF',
     soft: '#FFF6F5',
     softSelected: '#FDE5E2',
+    muted: '#F3F1F0',
     dark: '#101010',
     darkElevated: '#1A1A1A',
     darkSelected: '#2B2B2B',
@@ -25,6 +26,13 @@ export const AppColors = {
   },
   border: {
     default: '#C9C6C2',
+    soft: '#EDEAE8',
+  },
+  skeleton: {
+    light: '#EDEAE8',
+    dark: '#2B2B2B',
+    highlightLight: 'rgba(255, 255, 255, 0.6)',
+    highlightDark: 'rgba(255, 255, 255, 0.08)',
   },
   feedback: {
     error: '#B42318',
