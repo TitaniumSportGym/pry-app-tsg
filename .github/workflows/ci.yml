@@ -1,4 +1,8 @@
+
 name: CI de Titanium Mobile
+
+permissions:
+  contents: read
 
 on:
   push:
@@ -6,7 +10,6 @@ on:
       - main
       - develop
       - 'feature/**'
-
   pull_request:
     branches:
       - main
@@ -28,25 +31,48 @@ jobs:
           cache: npm
 
       - name: Instalar dependencias
+        id: dependencias
         run: npm ci
 
+      - name: Generar tipos de Expo Router
+        id: rutas
+        if: ${{ steps.dependencias.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          npx expo customize tsconfig.json 2>&1 | tee expo-routes.log
+
       - name: Comprobar TypeScript
-        run: npx tsc --noEmit
+        id: typescript
+        if: ${{ steps.rutas.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          npx tsc --noEmit 2>&1 | tee typescript.log
 
       - name: Ejecutar ESLint
-        run: npm run lint
+        id: eslint
+        if: ${{ !cancelled() && steps.dependencias.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          npm run lint 2>&1 | tee eslint.log
 
-      - name: Generar reporte de ESLint
+      - name: Publicar resultados del análisis estático en texto
         if: always()
-        run: npx eslint src tests --format json --output-file eslint-report.json || true
-
-      - name: Subir reporte de ESLint
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: reporte-eslint
-          path: eslint-report.json
-          retention-days: 14
+        env:
+          TYPESCRIPT_RESULT: ${{ steps.typescript.outcome }}
+          ESLINT_RESULT: ${{ steps.eslint.outcome }}
+          DEPS_RESULT: ${{ steps.dependencias.outcome }}
+          ROUTES_RESULT: ${{ steps.rutas.outcome }}
+        run: |
+          node scripts/ci-summary.cjs static
+          {
+            echo '### Generación de rutas Expo Router'
+            echo "- Resultado: **$ROUTES_RESULT**"
+            if [ "$ROUTES_RESULT" = 'failure' ] && [ -f expo-routes.log ]; then
+              echo '```text'
+              tail -n 50 expo-routes.log
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   pruebas-unitarias:
     name: Pruebas unitarias (Jest y RNTL)
@@ -66,15 +92,19 @@ jobs:
         run: npm ci
 
       - name: Ejecutar pruebas unitarias
-        run: npm run test:unit -- --ci --runInBand --coverage --coverageDirectory=coverage/unitarias
+        id: tests
+        run: |
+          set -o pipefail
+          npm run test:unit -- --ci --runInBand --coverage \
+            --coverageDirectory=coverage/unitarias \
+            --coverageReporters=text --coverageReporters=json-summary \
+            --json --outputFile=jest-unitarias.json 2>&1 | tee unitarias.log
 
-      - name: Subir cobertura de pruebas unitarias
+      - name: Publicar resultados unitarios en texto
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cobertura-unitarias
-          path: coverage/unitarias
-          retention-days: 14
+        env:
+          TEST_RESULT: ${{ steps.tests.outcome }}
+        run: node scripts/ci-summary.cjs jest "Pruebas unitarias" jest-unitarias.json coverage/unitarias/coverage-summary.json unitarias.log
 
   pruebas-integracion:
     name: Pruebas de integración (Jest y RNTL)
@@ -94,15 +124,19 @@ jobs:
         run: npm ci
 
       - name: Ejecutar pruebas de integración
-        run: npm run test:integration -- --ci --runInBand --coverage --coverageDirectory=coverage/integracion
+        id: tests
+        run: |
+          set -o pipefail
+          npm run test:integration -- --ci --runInBand --coverage \
+            --coverageDirectory=coverage/integracion \
+            --coverageReporters=text --coverageReporters=json-summary \
+            --json --outputFile=jest-integracion.json 2>&1 | tee integracion.log
 
-      - name: Subir cobertura de pruebas de integración
+      - name: Publicar resultados de integración en texto
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cobertura-integracion
-          path: coverage/integracion
-          retention-days: 14
+        env:
+          TEST_RESULT: ${{ steps.tests.outcome }}
+        run: node scripts/ci-summary.cjs jest "Pruebas de integración" jest-integracion.json coverage/integracion/coverage-summary.json integracion.log
 
   pruebas-regresion:
     name: Pruebas de regresión (suite completa)
@@ -123,18 +157,23 @@ jobs:
         run: npm ci
 
       - name: Ejecutar todas las pruebas existentes
-        run: npm test -- --ci --runInBand --coverage --coverageDirectory=coverage/regresion
+        id: tests
+        run: |
+          set -o pipefail
+          npm test -- --ci --runInBand --coverage \
+            --coverageDirectory=coverage/regresion \
+            --coverageReporters=text --coverageReporters=json-summary \
+            --json --outputFile=jest-regresion.json 2>&1 | tee regresion.log
 
-      - name: Subir cobertura de la suite completa
+      - name: Publicar resultados de regresión en texto
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cobertura-regresion
-          path: coverage/regresion
-          retention-days: 14
+        env:
+          TEST_RESULT: ${{ steps.tests.outcome }}
+        run: node scripts/ci-summary.cjs jest "Pruebas de regresión" jest-regresion.json coverage/regresion/coverage-summary.json regresion.log
 
   pruebas-rendimiento:
     name: Pruebas de rendimiento (Reassure)
+    if: ${{ github.event_name == 'pull_request' }}
     needs: [pruebas-regresion]
     runs-on: ubuntu-latest
 
@@ -151,38 +190,41 @@ jobs:
           cache: npm
 
       - name: Medir línea base de la rama destino
+        id: linea-base
+        env:
+          BASE_BRANCH: ${{ github.base_ref }}
         run: |
-          BASE_BRANCH="${GITHUB_BASE_REF:-main}"
           CURRENT_SHA="$(git rev-parse HEAD)"
           git switch --detach "origin/$BASE_BRANCH"
-          if grep -q '"reassure"' package.json; then
-            npm ci
-            npx reassure --baseline || echo "::warning::No se pudo medir la línea base de $BASE_BRANCH."
-          else
-            echo "::notice::$BASE_BRANCH todavía no tiene Reassure; se omite la comparación."
+          if ! grep -q '"reassure"' package.json; then
+            echo "::error::La rama $BASE_BRANCH no tiene Reassure. No se puede validar el rendimiento sin línea base."
+            exit 1
           fi
+          npm ci
+          npx reassure --baseline
           git switch --detach "$CURRENT_SHA"
 
       - name: Instalar dependencias
         run: npm ci
 
       - name: Medir rama actual y comparar
+        id: comparar
         run: npx reassure --branch "${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
 
-      - name: Publicar resultados
+      - name: Publicar resultados de rendimiento en texto
         if: always()
+        env:
+          BASELINE_RESULT: ${{ steps.linea-base.outcome }}
+          COMPARE_RESULT: ${{ steps.comparar.outcome }}
         run: |
-          if [ -f .reassure/output.md ]; then
-            cat .reassure/output.md >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "Sin línea base para comparar; las mediciones actuales quedaron registradas en el log." >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-      - name: Subir reporte de rendimiento
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: reporte-rendimiento
-          path: .reassure
-          include-hidden-files: true
-          retention-days: 14
+          {
+            echo '## Pruebas de rendimiento (Reassure)'
+            echo "- Línea base: **$BASELINE_RESULT**"
+            echo "- Comparación: **$COMPARE_RESULT**"
+            echo ''
+            if [ -f .reassure/output.md ]; then
+              cat .reassure/output.md
+            else
+              echo 'No hay informe de comparación disponible. Revisa los logs del trabajo; no se considera una prueba aprobada sin resultados.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
