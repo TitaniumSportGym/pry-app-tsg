@@ -20,10 +20,10 @@ export const CLIENT_TABS = [
     icon: { ios: "square.grid.2x2.fill", android: "apps", web: "apps" },
   },
   {
-    name: "training",
-    href: "/training",
-    label: "Entrena",
-    icon: { ios: "dumbbell.fill", android: "fitness_center", web: "fitness_center" },
+    name: "store",
+    href: "/store",
+    label: "Tienda",
+    icon: { ios: "cart.fill", android: "shopping_cart", web: "shopping_cart" },
   },
   { name: "account", href: "/account", label: "Cuenta", icon: ACCOUNT_ICON },
 ] as const satisfies readonly AppTab[];
