@@ -1,19 +1,28 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet } from 'react-native';
 
-import { AppColors } from '@/theme/tokens';
+import { AppSectionScreen } from '@/components/layout/app-section-screen';
+import { InfoListCard } from '@/components/ui/info-list-card';
+import { useServicesViewModel } from '@/features/services/viewmodels/use-services-view-model';
 
 export function ServicesView() {
+  const viewModel = useServicesViewModel();
+
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-      <StatusBar style="dark" />
-      <View style={styles.content} />
-    </SafeAreaView>
+    <AppSectionScreen title="SERVICIOS" description="Todo lo que Titanium Sport Gym tiene para ti.">
+      {viewModel.options.map((option) => (
+        <Pressable
+          key={option.id}
+          accessibilityLabel={option.title}
+          accessibilityRole="button"
+          style={({ pressed }) => pressed && styles.pressed}
+          onPress={() => viewModel.openService(option.id)}>
+          <InfoListCard description={option.description} icon={option.icon} title={option.title} />
+        </Pressable>
+      ))}
+    </AppSectionScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: AppColors.surface.soft },
-  content: { flex: 1 },
+  pressed: { opacity: 0.7 },
 });

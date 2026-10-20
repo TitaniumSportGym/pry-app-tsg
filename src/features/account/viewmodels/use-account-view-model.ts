@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 
 export function useAccountViewModel() {
-  const { status, user, signOut } = useAuth();
+  const { status, user, role, signOut } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   async function logout() {
@@ -21,6 +21,11 @@ export function useAccountViewModel() {
     isAuthenticated: status === 'authenticated',
     email: user?.email ?? '',
     isSigningOut,
+    // Clients reach memberships from the Servicios tab; trainers have no such tab.
+    showMembershipsLink: role === 'entrenador',
+    openMemberships() {
+      router.push('/trainer/account/memberships');
+    },
     openLogin() {
       router.push('/login');
     },
