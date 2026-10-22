@@ -1,5 +1,7 @@
 /** Products from the public endpoints /api/products and /api/products/:id_producto. */
 
+import type { CartProductSnapshot } from "@/features/cart/models/cart";
+
 export type ProductKind = "supplement" | "apparel" | "accessory" | "other";
 
 export interface ProductSpec {
@@ -21,6 +23,7 @@ export interface Product {
   description: string;
   features: string[];
   specs: ProductSpec[];
+  createdAt: Date | null;
 }
 
 export interface ProductCategory {
@@ -42,6 +45,12 @@ function text(value: unknown) {
 
 function toPositiveInteger(value: unknown) {
   return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function toDate(value: unknown) {
+  if (typeof value !== "string") return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function toAmount(value: unknown) {
@@ -137,6 +146,7 @@ export function parseProduct(raw: unknown): Product | null {
     description: text(raw.description),
     features: Array.isArray(raw.features) ? raw.features.map(text).filter(Boolean) : [],
     specs: getSpecs(kind, raw),
+    createdAt: toDate(raw.createdAt),
   };
 }
 
@@ -198,4 +208,54 @@ export function getStockLabel(product: Pick<Product, "stock">) {
     return product.stock === 1 ? "Última pieza" : `Últimas ${product.stock} piezas`;
   }
   return "Disponible";
+}
+
+export interface CategorySummary extends ProductCategory {
+  count: number;
+  /** Up to four product photos for the category card. */
+  imageUrls: string[];
+}
+
+export function getCategorySummaries(products: readonly Product[]): CategorySummary[] {
+  return getCategories(products).map((category) => {
+    const inCategory = products.filter((product) => product.categoryId === category.id);
+
+    return {
+      ...category,
+      count: inCategory.length,
+      imageUrls: inCategory
+        .map((product) => product.imageUrls[0])
+        .filter((url): url is string => Boolean(url))
+        .slice(0, 4),
+    };
+  });
+}
+
+/** Most recently added products that can be bought. */
+export function getNewestProducts(products: readonly Product[], limit = 8) {
+  return products
+    .filter((product) => product.stock > 0)
+    .sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0))
+    .slice(0, limit);
+}
+
+/** Variant line shown in the cart, built from the product's own specs. */
+export function getVariantLabel(product: Pick<Product, "specs">) {
+  return product.specs.map((spec) => spec.value).join(" · ");
+}
+
+export function toCartProduct(product: Product): CartProductSnapshot {
+  return {
+    productId: product.id,
+    name: product.name,
+    price: product.price,
+    imageUrl: product.imageUrls[0] ?? null,
+    detail: getVariantLabel(product),
+    stock: product.stock,
+  };
+}
+
+/** A category id from a route param; only positive integers are accepted. */
+export function parseCategoryParam(value: unknown) {
+  return parseProductId(value);
 }

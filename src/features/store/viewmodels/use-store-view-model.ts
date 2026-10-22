@@ -4,26 +4,22 @@ import { useState } from 'react';
 import { getAccessErrorMessage } from '@/features/authorization/models/access-errors';
 import { getProducts } from '@/features/store/api/products-api';
 import {
-  filterProducts,
-  formatProductPrice,
-  getCategories,
-  isSoldOut,
+  getCategorySummaries,
+  getNewestProducts,
   MAX_SEARCH_LENGTH,
   sanitizeSearch,
 } from '@/features/store/models/product';
+import { toProductCardItem } from '@/features/store/models/product-card-item';
 import { useAuthorizedResource } from '@/hooks/use-authorized-resource';
 import { useDelayedFlag } from '@/hooks/use-delayed-flag';
 
 const SKELETON_DELAY_MS = 300;
 
+/** Screen 09 · Tienda: search, categories and newest products. */
 export function useStoreViewModel() {
   const resource = useAuthorizedResource(getProducts);
   const [query, setQuery] = useState('');
-  const [categoryId, setCategoryId] = useState<number | null>(null);
-
   const products = resource.data ?? [];
-  const visibleProducts = filterProducts(products, { categoryId, query });
-  const isFiltering = query.trim() !== '' || categoryId !== null;
 
   return {
     showSkeleton: useDelayedFlag(resource.isLoading, SKELETON_DELAY_MS),
@@ -32,30 +28,27 @@ export function useStoreViewModel() {
     errorMessage: resource.error
       ? getAccessErrorMessage(resource.error, 'No encontramos productos disponibles.')
       : null,
+    isEmpty: !resource.isLoading && !resource.error && products.length === 0,
     query,
     maxQueryLength: MAX_SEARCH_LENGTH,
-    categories: getCategories(products),
-    selectedCategoryId: categoryId,
-    products: visibleProducts.map((product) => ({
-      id: product.id,
-      name: product.name,
-      category: product.categoryName.toUpperCase(),
-      price: formatProductPrice(product.price),
-      imageUrl: product.imageUrls[0] ?? null,
-      soldOut: isSoldOut(product),
-    })),
-    emptyMessage:
-      products.length === 0
-        ? 'Aún no hay productos en la tienda.'
-        : isFiltering
-          ? 'No encontramos productos con esa búsqueda.'
-          : null,
+    categories: getCategorySummaries(products),
+    newest: getNewestProducts(products).map(toProductCardItem),
     retry: resource.retry,
     refresh: resource.refresh,
     setQuery(value: string) {
       setQuery(sanitizeSearch(value));
     },
-    selectCategory: setCategoryId,
+    submitSearch() {
+      const text = query.trim();
+      if (!text) return;
+      router.push({ pathname: '/store/catalog', params: { q: text } });
+    },
+    openCatalog() {
+      router.push('/store/catalog');
+    },
+    openCategory(categoryId: number) {
+      router.push({ pathname: '/store/catalog', params: { category: String(categoryId) } });
+    },
     openProduct(productId: number) {
       router.push({ pathname: '/store/[id]', params: { id: String(productId) } });
     },

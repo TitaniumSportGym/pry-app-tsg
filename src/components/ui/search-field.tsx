@@ -8,9 +8,16 @@ interface SearchFieldProps {
   placeholder: string;
   maxLength: number;
   onChangeText: (value: string) => void;
+  onSubmit?: () => void;
 }
 
-export function SearchField({ value, placeholder, maxLength, onChangeText }: SearchFieldProps) {
+export function SearchField({
+  value,
+  placeholder,
+  maxLength,
+  onChangeText,
+  onSubmit,
+}: SearchFieldProps) {
   return (
     <View style={styles.container}>
       <SymbolView
@@ -29,6 +36,7 @@ export function SearchField({ value, placeholder, maxLength, onChangeText }: Sea
         style={styles.input}
         value={value}
         onChangeText={onChangeText}
+        onSubmitEditing={onSubmit}
       />
       {value ? (
         <Pressable
@@ -49,11 +57,9 @@ export function SearchField({ value, placeholder, maxLength, onChangeText }: Sea
 
 const styles = StyleSheet.create({
   container: {
-    minHeight: 50,
-    borderWidth: 1,
-    borderColor: AppColors.border.soft,
+    minHeight: 44,
     borderRadius: 18,
-    backgroundColor: AppColors.surface.default,
+    backgroundColor: AppColors.surface.muted,
     alignItems: 'center',
     flexDirection: 'row',
     gap: AppSpacing.two,
@@ -61,7 +67,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    minHeight: 48,
+    minHeight: 44,
     color: AppColors.neutral.text,
     fontFamily: AppFonts.body,
     fontSize: AppFontSizes.body,

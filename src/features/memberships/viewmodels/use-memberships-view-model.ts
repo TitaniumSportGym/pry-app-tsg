@@ -14,6 +14,7 @@ import {
   getMembershipRoutes,
   type MembershipArea,
 } from '@/features/memberships/models/membership-area';
+import { useMembershipPurchase } from '@/features/memberships/viewmodels/use-membership-purchase';
 import { useAuthorizedResource } from '@/hooks/use-authorized-resource';
 import { useDelayedFlag } from '@/hooks/use-delayed-flag';
 
@@ -23,6 +24,7 @@ export function useMembershipsViewModel(area: MembershipArea) {
   const routes = getMembershipRoutes(area);
   const resource = useAuthorizedResource(getMembershipPlans);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const purchase = useMembershipPurchase(area);
 
   const plans = resource.data ?? [];
   const selectedPlan = plans.find((plan) => plan.id === selectedPlanId) ?? plans[0] ?? null;
@@ -49,6 +51,12 @@ export function useMembershipsViewModel(area: MembershipArea) {
           benefits: selectedPlan.benefits,
         }
       : null,
+    canBuy: purchase.canBuy,
+    isBuying: purchase.isBuying,
+    purchaseError: purchase.purchaseError,
+    buySelectedPlan() {
+      if (selectedPlan) void purchase.buy(selectedPlan.id);
+    },
     retry: resource.retry,
     refresh: resource.refresh,
     selectPlan: setSelectedPlanId,

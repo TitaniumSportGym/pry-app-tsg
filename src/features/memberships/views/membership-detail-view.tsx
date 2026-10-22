@@ -5,6 +5,7 @@ import { ErrorState } from '@/components/ui/screen-state';
 import type { MembershipArea } from '@/features/memberships/models/membership-area';
 import { useMembershipDetailViewModel } from '@/features/memberships/viewmodels/use-membership-detail-view-model';
 import { BenefitsCard } from '@/features/memberships/views/benefits-card';
+import { BuyMembershipButton } from '@/features/memberships/views/buy-membership-button';
 import { MembershipDetailSkeleton } from '@/features/memberships/views/membership-skeletons';
 import { AppColors, AppFonts, AppFontSizes, AppSpacing } from '@/theme/tokens';
 
@@ -21,9 +22,12 @@ export function MembershipDetailView({ area, planId }: MembershipDetailViewProps
     <BackScreen
       refreshing={viewModel.isRefreshing}
       onBack={viewModel.goBack}
-      onRefresh={viewModel.refresh}>
+      onRefresh={viewModel.refresh}
+    >
       {viewModel.isLoading ? (
-        viewModel.showSkeleton ? <MembershipDetailSkeleton /> : null
+        viewModel.showSkeleton ? (
+          <MembershipDetailSkeleton />
+        ) : null
       ) : viewModel.errorMessage ? (
         <ErrorState message={viewModel.errorMessage} onRetry={viewModel.retry} />
       ) : plan ? (
@@ -54,6 +58,15 @@ export function MembershipDetailView({ area, planId }: MembershipDetailViewProps
           </View>
 
           <BenefitsCard benefits={plan.benefits} />
+
+          {viewModel.canBuy ? (
+            <BuyMembershipButton
+              errorMessage={viewModel.purchaseError}
+              isBuying={viewModel.isBuying}
+              price={plan.price}
+              onBuy={viewModel.buy}
+            />
+          ) : null}
         </>
       ) : null}
     </BackScreen>

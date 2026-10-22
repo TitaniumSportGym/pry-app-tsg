@@ -1,12 +1,13 @@
 import { render, screen, userEvent } from "@testing-library/react-native";
 import { router } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import type { ReactElement } from "react";
 
-import { AccountView } from "../../src/features/account/views/account-view";
 import {
   getMembershipPlan,
   getMembershipPlans,
 } from "../../src/features/memberships/api/memberships-api";
+import { createMembershipCheckout } from "../../src/features/memberships/api/checkout-api";
 import type { MembershipPlan } from "../../src/features/memberships/models/membership";
 import { MembershipDetailView } from "../../src/features/memberships/views/membership-detail-view";
 import { MembershipsView } from "../../src/features/memberships/views/memberships-view";
@@ -37,6 +38,12 @@ jest.mock("../../src/features/authentication/data/google-auth-gateway", () => ({
 jest.mock("../../src/services/sessionService", () => ({
   removeAccessToken: jest.fn(),
   saveAccessToken: jest.fn(),
+}));
+
+jest.mock("expo-web-browser", () => ({ openBrowserAsync: jest.fn() }));
+
+jest.mock("../../src/features/memberships/api/checkout-api", () => ({
+  createMembershipCheckout: jest.fn(),
 }));
 
 jest.mock("../../src/features/memberships/api/memberships-api", () => ({
@@ -117,7 +124,7 @@ describe("Integración — consultar membresías", () => {
     );
 
     expect(router.push).toHaveBeenCalledWith({
-      pathname: "/services/memberships/[id]",
+      pathname: "/memberships/[id]",
       params: { id: couple.id },
     });
   });
@@ -209,23 +216,73 @@ describe("Integración — detalle de membresía", () => {
   });
 });
 
-describe("Integración — acceso desde Cuenta", () => {
+describe("Integración — comprar membresía", () => {
+  const CHECKOUT_URL = "https://www.mercadopago.com.mx/checkout/v1/redirect?pref_id=123";
+
   beforeEach(() => {
     jest.resetAllMocks();
+    jest.mocked(getMembershipPlans).mockResolvedValue([monthly, couple]);
   });
 
-  it("muestra el enlace de membresías al entrenador", async () => {
-    await renderWithSession(<AccountView />, "entrenador");
+  it("pide iniciar sesión al visitante y no crea ningún pago", async () => {
+    await renderWithSession(<MembershipsView area="client" />);
 
-    await userEvent.setup().press(await screen.findByRole("link", { name: "Membresías" }));
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Comprar por $440" }));
 
-    expect(router.push).toHaveBeenCalledWith("/trainer/account/memberships");
+    expect(router.push).toHaveBeenCalledWith("/login");
+    expect(createMembershipCheckout).not.toHaveBeenCalled();
   });
 
-  it.each([["cliente"], ["administrador"]])("no muestra el enlace al rol %p", async (rol) => {
-    await renderWithSession(<AccountView />, rol);
+  it("abre el pago de Mercado Pago del plan elegido para el cliente", async () => {
+    jest.mocked(createMembershipCheckout).mockResolvedValue({ checkoutUrl: CHECKOUT_URL });
+    await renderWithSession(<MembershipsView area="client" />, "cliente");
+    const user = userEvent.setup();
 
-    expect(await screen.findByText("Cerrar sesión")).toBeOnTheScreen();
-    expect(screen.queryByRole("link", { name: "Membresías" })).toBeNull();
+    await user.press(await screen.findByRole("tab", { name: "Paquete 2 personas" }));
+    await user.press(screen.getByRole("button", { name: "Comprar por $780" }));
+
+    expect(createMembershipCheckout).toHaveBeenCalledWith(couple.id, expect.any(String));
+    expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith(CHECKOUT_URL);
+  });
+
+  it("usa la misma llave si el cliente reintenta el mismo pago", async () => {
+    jest
+      .mocked(createMembershipCheckout)
+      .mockRejectedValueOnce(new TypeError("Network request failed"))
+      .mockResolvedValueOnce({ checkoutUrl: CHECKOUT_URL });
+    jest.mocked(getMembershipPlan).mockResolvedValue(monthly);
+    await renderWithSession(<MembershipDetailView area="client" planId={monthly.id} />, "cliente");
+    const user = userEvent.setup();
+
+    const button = await screen.findByRole("button", { name: "Comprar por $440" });
+    await user.press(button);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/No pudimos iniciar el pago/);
+
+    await user.press(screen.getByRole("button", { name: "Comprar por $440" }));
+
+    const [firstKey, secondKey] = jest
+      .mocked(createMembershipCheckout)
+      .mock.calls.map(([, key]) => key);
+    expect(secondKey).toBe(firstKey);
+    expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith(CHECKOUT_URL);
+  });
+
+  it("muestra el motivo cuando el backend rechaza la compra", async () => {
+    jest
+      .mocked(createMembershipCheckout)
+      .mockRejectedValue(new ApiError("Ya tienes una membresía activa", 409));
+    await renderWithSession(<MembershipsView area="client" />, "cliente");
+
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Comprar por $440" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Ya tienes una membresía activa");
+    expect(WebBrowser.openBrowserAsync).not.toHaveBeenCalled();
+  });
+
+  it("no muestra el botón de compra al entrenador", async () => {
+    await renderWithSession(<MembershipsView area="trainer" />, "entrenador");
+
+    expect(await screen.findByText("ELIGE TU MEMBRESÍA")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: /Comprar por/ })).toBeNull();
   });
 });
