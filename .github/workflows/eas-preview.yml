@@ -1,0 +1,129 @@
+name: EAS preview Android APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: titanium-eas-preview-android
+  cancel-in-progress: false
+
+jobs:
+  calidad:
+    name: Calidad antes de solicitar la APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Obtener el commit seleccionado
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Validar configuración de preview y origen de API
+        run: node scripts/eas-preview.cjs validate
+
+      - name: Generar tipos de Expo Router
+        run: npx expo customize tsconfig.json
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Pruebas unitarias
+        run: npm run test:unit -- --ci --runInBand
+
+      - name: Pruebas de integración
+        run: npm run test:integration -- --ci --runInBand
+
+      - name: Pruebas de aceptación
+        run: npm run test:acceptance -- --ci --runInBand
+
+      - name: Regresión completa de las suites existentes
+        run: npm test -- --ci --runInBand
+
+  build:
+    name: EAS Build preview Android
+    needs: [calidad]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      build_url: ${{ steps.resultado.outputs.build_url }}
+      remote_status: ${{ steps.resultado.outputs.remote_status }}
+    steps:
+      - name: Obtener el mismo commit validado
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Validar configuración antes de usar EAS
+        run: node scripts/eas-preview.cjs validate
+
+      - name: Comprobar que EXPO_TOKEN está configurado
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo '::error::Configura el secreto de GitHub EXPO_TOKEN para una cuenta con acceso al proyecto EAS.'
+            exit 1
+          fi
+
+      - name: Configurar Expo y EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          packager: npm
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Solicitar APK y esperar el resultado real
+        id: compilar
+        shell: bash
+        run: |
+          mkdir -p coverage/eas-preview
+          npx eas-cli@latest build --platform android --profile preview --non-interactive --wait --json \
+            > coverage/eas-preview/build.json \
+            2> >(tee coverage/eas-preview/build.log >&2)
+
+      - name: Registrar enlace y comprobar resultado final APK
+        id: resultado
+        if: ${{ !cancelled() && steps.compilar.outcome != 'skipped' }}
+        run: node scripts/eas-preview.cjs result coverage/eas-preview/build.json coverage/eas-preview/build.log
+
+  resumen:
+    name: Resumen de calidad y compilación
+    if: always()
+    needs: [calidad, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener código para publicar el resumen
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Publicar resultado sin secretos
+        env:
+          QUALITY_RESULT: ${{ needs.calidad.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          BUILD_URL: ${{ needs.build.outputs.build_url }}
+          REMOTE_STATUS: ${{ needs.build.outputs.remote_status }}
+        run: node scripts/eas-preview.cjs summary
