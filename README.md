@@ -56,6 +56,10 @@ npm run lint
 npx tsc --noEmit
 ```
 
+Para la Actividad 4, ejecuta `npm run test:acceptance -- --ci --runInBand`.
+Los criterios funcionales, mocks, informes de CI y diferencias frente a una E2E
+de la APK se documentan en [tests/acceptance/README.md](tests/acceptance/README.md).
+
 ## Estructura principal
 
 ```text

@@ -8,7 +8,7 @@ module.exports = defineConfig([
     ignores: ['dist/*'],
   },
   {
-    files: ['**/*.test.ts', '**/*.test.tsx'],
+    files: ['**/*.test.ts', '**/*.test.tsx', 'tests/acceptance/**/*.tsx'],
     rules: {
       'import/no-unresolved': [
         'error',
