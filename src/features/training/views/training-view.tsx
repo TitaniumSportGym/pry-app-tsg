@@ -14,6 +14,6 @@ export function TrainingView() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: AppColors.surface.soft },
+  safeArea: { flex: 1, backgroundColor: AppColors.surface.default },
   content: { flex: 1 },
 });

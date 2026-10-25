@@ -108,7 +108,7 @@ export function AuthFormScreen({
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: AppColors.surface.soft },
+  safeArea: { flex: 1, backgroundColor: AppColors.surface.default },
   keyboardView: {
     flex: 1,
   },
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     alignItems: 'center',
     paddingBottom: AppSpacing.five,
-    backgroundColor: AppColors.surface.soft,
+    backgroundColor: AppColors.surface.default,
   },
   content: {
     width: '100%',

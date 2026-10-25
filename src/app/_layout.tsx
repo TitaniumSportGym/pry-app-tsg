@@ -14,6 +14,7 @@ import { AppSplashScreen } from '@/components/splash/app-splash-screen';
 import { getAccessibleAreas, getRoleRouteGroup } from '@/features/authorization/models/user-role';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthProvider } from '@/providers/auth-provider';
+import { CartProvider } from '@/providers/cart-provider';
 import { AppFonts } from '@/theme/tokens';
 
 SplashScreen.preventAutoHideAsync();
@@ -35,7 +36,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AuthProvider>
-        <RootNavigator />
+        <CartProvider>
+          <RootNavigator />
+        </CartProvider>
       </AuthProvider>
     </ThemeProvider>
   );

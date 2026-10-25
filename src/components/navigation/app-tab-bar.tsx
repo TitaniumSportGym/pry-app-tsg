@@ -11,7 +11,11 @@ import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { TabBadge } from '@/components/navigation/tab-badge';
 import { AppColors, AppFonts, AppSpacing } from '@/theme/tokens';
+
+/** Height of the tab bar without the bottom safe area. */
+export const TAB_BAR_HEIGHT = 64;
 
 export interface AppTab {
   name: string;
@@ -22,14 +26,17 @@ export interface AppTab {
 
 interface AppTabBarProps {
   tabs: readonly AppTab[];
+  /** Counters shown over a tab icon, keyed by tab name (e.g. { cart: 3 }). */
+  badges?: Partial<Record<string, number>>;
 }
 
 interface AppTabButtonProps extends TabTriggerSlotProps {
   icon: SymbolViewProps['name'];
   label: string;
+  badge?: number;
 }
 
-export function AppTabBar({ tabs }: AppTabBarProps) {
+export function AppTabBar({ tabs, badges }: AppTabBarProps) {
   return (
     <Tabs>
       <TabSlot style={styles.slot} />
@@ -37,7 +44,7 @@ export function AppTabBar({ tabs }: AppTabBarProps) {
         <TabBarContainer>
           {tabs.map((tab) => (
             <TabTrigger key={tab.name} name={tab.name} href={tab.href} resetOnFocus asChild>
-              <AppTabButton icon={tab.icon} label={tab.label} />
+              <AppTabButton badge={badges?.[tab.name]} icon={tab.icon} label={tab.label} />
             </TabTrigger>
           ))}
         </TabBarContainer>
@@ -46,24 +53,27 @@ export function AppTabBar({ tabs }: AppTabBarProps) {
   );
 }
 
-function AppTabButton({ icon, isFocused, label, ...props }: AppTabButtonProps) {
+function AppTabButton({ badge = 0, icon, isFocused, label, ...props }: AppTabButtonProps) {
   return (
     <Pressable
       {...props}
-      accessibilityLabel={label}
-      style={({ pressed }) => [
-        styles.tabButton,
-        isFocused && styles.tabButtonSelected,
-        pressed && styles.pressed,
-      ]}>
-      <SymbolView
-        name={icon}
-        size={22}
-        tintColor={isFocused ? AppColors.neutral.white : AppColors.neutral.muted}
-      />
-      <Text
-        numberOfLines={1}
-        style={[styles.tabLabel, isFocused && styles.tabLabelSelected]}>
+      accessibilityLabel={
+        badge > 0 ? `${label}, ${badge} ${badge === 1 ? 'producto' : 'productos'}` : label
+      }
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isFocused }}
+      style={({ pressed }) => [styles.tabButton, pressed && styles.pressed]}
+    >
+      <View style={[styles.indicator, isFocused && styles.indicatorSelected]} />
+      <View>
+        <SymbolView
+          name={icon}
+          size={22}
+          tintColor={isFocused ? AppColors.brand.primary : AppColors.neutral.muted}
+        />
+        <TabBadge count={badge} />
+      </View>
+      <Text numberOfLines={1} style={[styles.tabLabel, isFocused && styles.tabLabelSelected]}>
         {label}
       </Text>
     </Pressable>
@@ -79,10 +89,11 @@ function TabBarContainer({ children, ...props }: TabListProps) {
       style={[
         styles.tabList,
         {
-          height: 64 + insets.bottom,
+          height: TAB_BAR_HEIGHT + insets.bottom,
           paddingBottom: insets.bottom,
         },
-      ]}>
+      ]}
+    >
       {children}
     </View>
   );
@@ -91,7 +102,7 @@ function TabBarContainer({ children, ...props }: TabListProps) {
 const styles = StyleSheet.create({
   slot: {
     height: '100%',
-    paddingBottom: 64,
+    paddingBottom: TAB_BAR_HEIGHT,
   },
   tabList: {
     position: 'absolute',
@@ -99,37 +110,42 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     borderTopWidth: 1,
-    borderTopColor: AppColors.border.default,
+    borderTopColor: AppColors.border.soft,
     backgroundColor: AppColors.surface.default,
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'center',
     flexDirection: 'row',
-    gap: AppSpacing.one,
     paddingHorizontal: AppSpacing.two,
-    paddingTop: AppSpacing.two,
   },
   tabButton: {
-    maxWidth: 112,
-    height: 44,
+    maxWidth: 120,
+    height: TAB_BAR_HEIGHT,
     flex: 1,
-    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
-    gap: AppSpacing.one,
-    paddingHorizontal: 6,
+    gap: 2,
   },
-  tabButtonSelected: {
+  indicator: {
+    position: 'absolute',
+    top: 0,
+    width: 28,
+    height: 3,
+    borderBottomLeftRadius: 3,
+    borderBottomRightRadius: 3,
+    backgroundColor: 'transparent',
+  },
+  indicatorSelected: {
     backgroundColor: AppColors.brand.primary,
   },
   tabLabel: {
     color: AppColors.neutral.muted,
     fontFamily: AppFonts.label,
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 14,
   },
   tabLabelSelected: {
-    color: AppColors.neutral.white,
+    color: AppColors.brand.primary,
+    fontFamily: AppFonts.button,
   },
   pressed: {
     opacity: 0.7,

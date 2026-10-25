@@ -8,17 +8,21 @@ export function useReduceMotion() {
   useEffect(() => {
     let isMounted = true;
 
-    AccessibilityInfo.isReduceMotionEnabled()
+    // Promise.resolve guards against platforms or mocks that do not return a promise.
+    Promise.resolve(AccessibilityInfo.isReduceMotionEnabled())
       .then((enabled) => {
-        if (isMounted) setReduceMotion(enabled);
+        if (isMounted) setReduceMotion(enabled === true);
       })
       .catch(() => undefined);
 
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    const subscription = AccessibilityInfo.addEventListener?.(
+      'reduceMotionChanged',
+      setReduceMotion,
+    );
 
     return () => {
       isMounted = false;
-      subscription.remove();
+      subscription?.remove();
     };
   }, []);
 

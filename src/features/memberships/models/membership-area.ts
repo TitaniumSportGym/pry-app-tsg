@@ -1,20 +1,20 @@
 /**
  * The membership screens are reused in two route areas:
- * - client and guest: Servicios → Membresías
+ * - client and guest: the Membresías tab
  * - trainer: Cuenta → Membresías (no extra tab)
  */
-export type MembershipArea = "client" | "trainer";
+export type MembershipArea = 'client' | 'trainer';
 
 const MEMBERSHIP_ROUTES = {
   client: {
-    list: "/services/memberships",
-    detail: "/services/memberships/[id]",
-    parent: "/services",
+    list: '/memberships',
+    detail: '/memberships/[id]',
+    parent: '/',
   },
   trainer: {
-    list: "/trainer/account/memberships",
-    detail: "/trainer/account/memberships/[id]",
-    parent: "/trainer/account",
+    list: '/trainer/account/memberships',
+    detail: '/trainer/account/memberships/[id]',
+    parent: '/trainer/account',
   },
 } as const;
 
