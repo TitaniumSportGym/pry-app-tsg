@@ -1,0 +1,91 @@
+name: Carga ligera HTTP controlada (k6)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_isolated:
+        description: Confirmo que el destino es un entorno aislado autorizado para carga
+        type: boolean
+        required: true
+        default: false
+      peak_vus:
+        description: Pico de usuarios virtuales (2 a 3; máximo estricto 3)
+        type: number
+        required: true
+        default: 3
+      ramp_seconds:
+        description: Segundos de cada rampa (5 a 10)
+        type: number
+        required: true
+        default: 7
+      hold_seconds:
+        description: Segundos al pico (5 a 10)
+        type: number
+        required: true
+        default: 10
+
+permissions:
+  contents: read
+
+concurrency:
+  group: titanium-stress-isolated
+  cancel-in-progress: false
+
+jobs:
+  stress:
+    name: Consulta pública en entorno aislado
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: stress-isolated
+    env:
+      K6_BASE_URL: ${{ vars.K6_BASE_URL }}
+      K6_ALLOWED_ORIGIN: ${{ vars.K6_ALLOWED_ORIGIN }}
+      K6_ENVIRONMENT: ${{ vars.K6_ENVIRONMENT }}
+      K6_CONFIRM_ISOLATED: ${{ inputs.confirm_isolated }}
+      K6_PEAK_VUS: ${{ inputs.peak_vus }}
+      K6_RAMP_SECONDS: ${{ inputs.ramp_seconds }}
+      K6_HOLD_SECONDS: ${{ inputs.hold_seconds }}
+      K6_NO_USAGE_REPORT: 'true'
+
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js para validación local
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Validar destino aislado y límites sin tráfico
+        run: |
+          mkdir -p coverage/stress
+          set -o pipefail
+          node tests/stress/validate-config.mjs 2>&1 | tee coverage/stress/config.log
+
+      - name: Instalar k6
+        uses: grafana/setup-k6-action@v1
+        with:
+          k6-version: '1.6.0'
+
+      - name: Ejecutar perfil controlado y verificar recuperación
+        run: |
+          set -o pipefail
+          k6 run --out json=coverage/stress/metrics.json tests/stress/memberships.k6.js 2>&1 | tee coverage/stress/k6.log
+
+      - name: Publicar resumen
+        if: always()
+        run: |
+          if [ -f coverage/stress/summary.md ]; then
+            cat coverage/stress/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'No se generó el informe k6. Consulta config.log/k6.log: la ausencia de resultados no demuestra una prueba aprobada.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Guardar resultados incluso ante fallos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stress-k6-${{ github.run_id }}-${{ github.run_attempt }}
+          path: coverage/stress/
+          if-no-files-found: warn
+          retention-days: 14
