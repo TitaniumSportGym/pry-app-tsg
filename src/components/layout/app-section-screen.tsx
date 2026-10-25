@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   scrollContent: {
     flexGrow: 1,
-    backgroundColor: AppColors.surface.soft,
+    backgroundColor: AppColors.surface.default,
     paddingBottom: 112,
   },
   header: {

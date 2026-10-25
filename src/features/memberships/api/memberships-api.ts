@@ -1,15 +1,15 @@
 import {
   parseMembershipPlan,
   parseMembershipPlans,
-} from "@/features/memberships/models/membership";
-import { apiRequest } from "@/services/apiClient";
-import { ApiError } from "@/types/auth";
+} from '@/features/memberships/models/membership';
+import { apiRequest } from '@/services/apiClient';
+import { ApiError } from '@/types/auth';
 
-const PLAN_NOT_FOUND = "Plan de membresía no encontrado";
+const PLAN_NOT_FOUND = 'Plan de membresía no encontrado';
 
 // Public endpoints: the session token is not sent (auth: false).
 export async function getMembershipPlans() {
-  const response = await apiRequest<{ plans?: unknown }>("/api/memberships/plans", {
+  const response = await apiRequest<{ plans?: unknown }>('/api/memberships/plans', {
     auth: false,
   });
 

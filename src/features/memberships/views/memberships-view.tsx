@@ -6,6 +6,7 @@ import { EmptyState, ErrorState } from '@/components/ui/screen-state';
 import type { MembershipArea } from '@/features/memberships/models/membership-area';
 import { useMembershipsViewModel } from '@/features/memberships/viewmodels/use-memberships-view-model';
 import { BenefitsCard } from '@/features/memberships/views/benefits-card';
+import { BuyMembershipButton } from '@/features/memberships/views/buy-membership-button';
 import { MembershipsSkeleton } from '@/features/memberships/views/membership-skeletons';
 import { AppColors, AppFonts, AppFontSizes, AppSpacing } from '@/theme/tokens';
 
@@ -17,9 +18,12 @@ export function MembershipsView({ area }: { area: MembershipArea }) {
     <BackScreen
       refreshing={viewModel.isRefreshing}
       onBack={viewModel.goBack}
-      onRefresh={viewModel.refresh}>
+      onRefresh={viewModel.refresh}
+    >
       {viewModel.isLoading ? (
-        viewModel.showSkeleton ? <MembershipsSkeleton /> : null
+        viewModel.showSkeleton ? (
+          <MembershipsSkeleton />
+        ) : null
       ) : viewModel.errorMessage ? (
         <ErrorState message={viewModel.errorMessage} onRetry={viewModel.retry} />
       ) : viewModel.isEmpty || !plan ? (
@@ -42,7 +46,8 @@ export function MembershipsView({ area }: { area: MembershipArea }) {
             accessibilityRole="tablist"
             contentContainerStyle={styles.selectorContent}
             showsHorizontalScrollIndicator={false}
-            style={styles.selector}>
+            style={styles.selector}
+          >
             {viewModel.planOptions.map((option) => {
               const selected = option.id === plan.id;
 
@@ -52,7 +57,8 @@ export function MembershipsView({ area }: { area: MembershipArea }) {
                   accessibilityRole="tab"
                   accessibilityState={{ selected }}
                   style={[styles.option, selected && styles.optionSelected]}
-                  onPress={() => viewModel.selectPlan(option.id)}>
+                  onPress={() => viewModel.selectPlan(option.id)}
+                >
                   <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
                     {option.name}
                   </Text>
@@ -81,7 +87,8 @@ export function MembershipsView({ area }: { area: MembershipArea }) {
             accessibilityRole="link"
             hitSlop={8}
             style={({ pressed }) => [styles.detailLink, pressed && styles.pressed]}
-            onPress={viewModel.openDetail}>
+            onPress={viewModel.openDetail}
+          >
             <Text style={styles.detailLinkText}>VER DETALLE DE LA MEMBRESÍA</Text>
             <SymbolView
               name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
@@ -89,6 +96,15 @@ export function MembershipsView({ area }: { area: MembershipArea }) {
               tintColor={AppColors.brand.primary}
             />
           </Pressable>
+
+          {viewModel.canBuy ? (
+            <BuyMembershipButton
+              errorMessage={viewModel.purchaseError}
+              isBuying={viewModel.isBuying}
+              price={plan.price}
+              onBuy={viewModel.buySelectedPlan}
+            />
+          ) : null}
         </>
       )}
     </BackScreen>

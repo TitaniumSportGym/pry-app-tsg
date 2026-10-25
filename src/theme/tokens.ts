@@ -38,6 +38,8 @@ export const AppColors = {
     error: '#B42318',
     success: '#16794B',
     successSoft: '#E9F7EF',
+    warning: '#B54708',
+    warningSoft: '#FEF0C7',
   },
 } as const;
 
