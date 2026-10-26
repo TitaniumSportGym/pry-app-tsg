@@ -1,11 +1,16 @@
 import { render, screen, userEvent } from '@testing-library/react-native';
 import { router } from 'expo-router';
-import type { ReactElement } from 'react';
+import type { PropsWithChildren, ReactElement } from 'react';
 
 import { AuthProvider } from '../../src/providers/auth-provider';
+import { CartProvider } from '../../src/providers/cart-provider';
 import { restoreSession } from '../../src/services/authService';
 
 export const sessionUser = { id: '1', email: 'usuario@correo.com', rol: 'cliente' };
+
+function AcceptanceProviders({ children }: PropsWithChildren) {
+  return <AuthProvider><CartProvider>{children}</CartProvider></AuthProvider>;
+}
 
 export async function renderAcceptance(ui: ReactElement, role?: string) {
   if (role) {
@@ -15,9 +20,9 @@ export async function renderAcceptance(ui: ReactElement, role?: string) {
     });
   }
 
-  // rerender changes views explicitly and preserves the real AuthProvider.
+  // rerender changes views explicitly and preserves the real session and cart.
   // It does not run an Expo Router navigator.
-  return render(ui, { wrapper: AuthProvider });
+  return render(ui, { wrapper: AcceptanceProviders });
 }
 
 export async function enterLogin(
@@ -30,10 +35,14 @@ export async function enterLogin(
   return user;
 }
 
-export function requestedDetailId() {
+export function requestedParams() {
   const destination = jest.mocked(router.push).mock.lastCall?.[0];
-  if (typeof destination !== 'object' || !destination.params) {
+  if (!destination || typeof destination !== 'object' || !destination.params) {
     throw new Error('La acción del usuario no solicitó una ruta con parámetros.');
   }
-  return destination.params.id;
+  return destination.params;
+}
+
+export function requestedDetailId() {
+  return requestedParams().id;
 }

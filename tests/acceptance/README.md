@@ -1,6 +1,6 @@
 # Actividad 4: aceptación automatizada simulada
 
-Los escenarios ejecutan componentes, ViewModels, validaciones y `AuthProvider`
+Los escenarios ejecutan componentes, ViewModels, validaciones, `AuthProvider` y `CartProvider`
 reales con Jest y React Native Testing Library. Usan los mismos contratos de mocks
 que `tests/integration/`: Expo Router, servicios de autenticación, almacenamiento
 de sesión, gateway de Google, áreas seguras y APIs de membresías/productos.
@@ -15,7 +15,8 @@ recorridos con su infraestructura de pruebas.
 
 La navegación se verifica como una solicitud a `router.push/replace`. Para
 consultar la pantalla siguiente, `rerender` cambia explícitamente la vista y
-conserva el proveedor de sesión; los detalles reciben el ID de la solicitud de
+conserva los proveedores de sesión y carrito; el catálogo recibe `category`/`q`
+y los detalles reciben el ID de la solicitud de
 navegación capturada. Esto no ejecuta los layouts ni el navegador de Expo Router.
 SDK 57 usa un helper `expo-router/testing-library` compatible con RNTL 13, mientras
 este proyecto ya usa RNTL 14; no se cambian versiones para incorporar esta suite.
@@ -29,28 +30,62 @@ integración conservan sus nombres, archivos y objetivos.
 
 | Criterio | Dado / cuando | Resultado funcional exigido |
 | --- | --- | --- |
-| CA-LOGIN-01 | Formulario vacío; corregir y enviar | Se eliminan errores de campos, se normaliza el correo y la cuenta muestra la sesión iniciada. |
+| CA-LOGIN-01 | Formulario vacío; corregir y enviar | Se eliminan errores de campos, se normaliza el correo y Más muestra correo, rol Cliente y accesos de la cuenta autenticada. |
 | CA-LOGIN-02 | Credenciales rechazadas; corregir contraseña | Se conserva el correo, se permite reintentar y desaparece el error al acceder a la cuenta. |
 | CA-LOGIN-03 | Cuenta con doble factor; enviar contraseña | Se solicita verificar OTP y la cuenta permanece como visitante. |
-| CA-ROL-01 | Cliente; iniciar y cerrar sesión | Solicita `/`, muestra su cuenta sin el enlace exclusivo de entrenador y elimina el perfil al salir. |
-| CA-ROL-02 | Entrenador; iniciar, abrir membresías y salir | Solicita `/trainer`, ofrece membresías desde Cuenta y elimina esas opciones al salir. |
-| CA-ROL-03 | Administrador; iniciar y cerrar sesión | Solicita `/admin`, muestra su cuenta sin el enlace exclusivo de entrenador y elimina el perfil al salir. |
+| CA-ROL-01 | Cliente; iniciar, consultar accesos y confirmar cierre de sesión | Solicita `/`; Mi membresía y Membresías Titanium abren `/memberships`. Solo después de confirmar CERRAR SESIÓN desaparecen perfil y accesos privados. |
+| CA-ROL-02 | Entrenador; iniciar, abrir membresías/clientes y confirmar salida | Solicita `/trainer`; Membresías del gimnasio abre `/trainer/account/memberships` y Mis clientes abre `/trainer/clients`. Al confirmar salida desaparecen sus opciones. |
+| CA-ROL-03 | Administrador; iniciar, consultar administración y confirmar salida | Solicita `/admin`, ofrece Usuarios/Pagos con sus rutas y no ofrece opciones de membresía de cliente o entrenador; al confirmar salida elimina el perfil. |
 | CA-ROL-04 | Rol desconocido; iniciar sesión | Explica la denegación, revoca la sesión y mantiene la cuenta como visitante. |
-| CA-MEM-01 | Visitante; comparar y abrir plan grupal | Cambia la selección accesible, quita el precio/beneficios previos y conserva precio, duración y cobertura en el detalle. |
-| CA-MEM-02 | Entrenador; comparar y abrir plan grupal | Conserva los mismos datos del plan dentro de la ruta de Cuenta del entrenador. |
+| CA-MEM-01 | Visitante; comparar y abrir plan grupal | Cambia la selección accesible, quita precio/beneficios previos y conserva precio, duración y cobertura en `/memberships/[id]`. La acción Comprar está visible. |
+| CA-MEM-02 | Entrenador; comparar y abrir plan grupal | Conserva los mismos datos en `/trainer/account/memberships/[id]`; no ofrece compra ni en lista ni en detalle. |
 | CA-MEM-03 | Elegir tarifa estudiantil y abrir detalle | Expone el precio elegido y el requisito de credencial vigente antes de decidir. |
 | CA-MEM-04 | Falla de conexión; reintentar y abrir plan | Sustituye el error por planes utilizables y permite continuar al detalle. |
 | CA-MEM-05 | No hay planes | Orienta a volver más tarde y no ofrece detalles inexistentes. |
-| CA-CAT-01 | Visitante; combinar búsqueda y categoría | Aplica ambos filtros, conserva la consulta al cambiar categoría y permite recuperar todos los productos. |
-| CA-CAT-02 | Abrir producto disponible | Conserva identidad, precio, marca, categoría, especificaciones y disponibilidad del producto elegido. |
-| CA-CAT-03 | Abrir producto agotado | Conserva identidad y precio, e informa agotado también en el detalle. |
-| CA-CAT-04 | Falla de conexión; reintentar y buscar por marca | El error desaparece y los productos recuperados se pueden filtrar. |
-| CA-CAT-05 | Catálogo vacío | Informa ausencia de productos sin confundirla con una búsqueda sin coincidencias o un error de red. |
+| CA-CAT-01 | Visitante; abrir categoría desde Tienda y combinar filtros en Catálogo | Tienda muestra categorías con cantidades y Nuevos ordenados por fecha sin agotados; transmite `category` a `/store/catalog`. El catálogo conserva búsqueda al cambiar categoría y permite recuperar todos los productos. |
+| CA-CAT-02 | Ver todo; abrir producto disponible | Abre `/store/catalog` y después `/store/[id]`, conserva identidad, precio, marca, categoría, especificaciones y disponibilidad; indica que el carrito requiere sesión. |
+| CA-CAT-03 | Ver todo; abrir producto agotado | El agotado está ausente de Nuevos pero disponible para consulta en Catálogo y detalle; conserva identidad/precio y deshabilita AGOTADO/COMPRAR. |
+| CA-CAT-04 | Falla de conexión; reintentar y enviar búsqueda por marca | El error desaparece; Buscar transmite `q` a `/store/catalog` y se muestran solo las coincidencias de marca. |
+| CA-CAT-05 | Tienda y catálogo vacíos | Tienda orienta a volver pronto; buscar lleva al catálogo, que informa ausencia de inventario sin confundirla con filtros sin coincidencias o un error de red. |
 
 Estos recorridos agregan validaciones respecto de las pruebas de integración:
 recuperación del formulario y sesión visible, cierre de sesión por rol,
 consistencia entre selección y detalle, requisitos estudiantiles, filtros
 combinados y continuidad del recorrido tras recuperarse de errores.
+
+## Adaptación tras integrar develop
+
+Se conservan **17 pruebas con los mismos 17 identificadores**, sin `.skip`,
+`.only` ni mocks de los ViewModels o modelos. Los cambios funcionales integrados
+requieren reformular estas expectativas anteriores:
+
+- La pantalla Cuenta ahora es **Más**. Para un visitante se verifica el encabezado
+  `Inicia sesión` y las acciones Iniciar sesión/Crear cuenta. Para una sesión
+  autenticada se comprueban correo, rol y opciones reales, reemplazando el texto
+  eliminado `Sesión segura` por evidencia funcional del perfil.
+- Cerrar sesión requiere **confirmación nativa**. CA-ROL-01/02/03 verifican el
+  diálogo, que no haya logout anticipado y que el callback real de confirmación
+  cierre la sesión. Se simula solo `Alert.alert`; no se invoca directamente
+  `signOut` ni se omite la lógica del ViewModel. Los mocks del diálogo se restauran.
+- El cliente tiene botones de membresía propios; no debe exigirse la ausencia
+  de todos los accesos a membresías. Los accesos de entrenador y administrador
+  se verifican por separado. Las rutas de cliente usan `/memberships`; las del
+  entrenador siguen bajo `/trainer/account/memberships`.
+- La búsqueda y los chips filtran en **Catálogo**. Tienda muestra categorías y
+  Nuevos, y navega a `/store/catalog` con `category` o `q`; escribir en Tienda
+  ya no filtra sus tarjetas al instante. Los agotados se consultan en Catálogo,
+  no en Nuevos. Estos criterios se prueban como recorridos entre las vistas reales,
+  pasando los parámetros capturados de la solicitud de navegación.
+- Las especificaciones del detalle ahora se presentan como `Presentación: 300 g`
+  o `Talla: M`. Se verifica la información completa, no se elimina la validación.
+
+Los fixtures satisfacen el contrato `Product.createdAt: Date | null`: se conserva
+el `null` existente y se añade una fecha fija a proteína para comprobar el orden
+de Nuevos sin depender del reloj. El wrapper monta el carrito real igual que la
+app. El mock de `useSafeAreaInsets` usa una función estable, como integración,
+para que `resetAllMocks` no borre las métricas nativas simuladas; no altera lógica
+de autenticación, filtrado, navegación ni carrito. No se modifican pantallas,
+ViewModels, rutas, suites de integración, workflows, EAS Build o k6.
 
 ## Ejecución y separación de suites
 

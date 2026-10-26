@@ -54,6 +54,7 @@ export const creatine: Product = {
   description: 'Creatina monohidratada micronizada',
   features: [],
   specs: [{ label: 'Presentación', value: '300 g' }],
+  createdAt: null,
 };
 
 export const shirt: Product = {
@@ -66,6 +67,7 @@ export const shirt: Product = {
   kind: 'apparel',
   price: 599,
   stock: 0,
+  description: 'Playera deportiva de corte ajustado',
   features: ['Corte ajustado'],
   specs: [{ label: 'Talla', value: 'M' }],
 };
@@ -76,4 +78,5 @@ export const protein: Product = {
   name: 'Proteína de suero',
   brand: 'Titanium',
   price: 799,
+  createdAt: new Date('2026-10-01T12:00:00.000Z'),
 };

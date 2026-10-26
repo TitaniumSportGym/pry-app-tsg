@@ -6,9 +6,11 @@ jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: jest.fn() },
 }));
 
-jest.mock('react-native-safe-area-context', () =>
-  require('react-native-safe-area-context/jest/mock').default,
-);
+jest.mock('react-native-safe-area-context', () => ({
+  ...require('react-native-safe-area-context/jest/mock').default,
+  // Match the integration harness: resetAllMocks must not erase native insets.
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
 
 jest.mock('../../src/services/authService', () => ({
   getCurrentUser: jest.fn(),

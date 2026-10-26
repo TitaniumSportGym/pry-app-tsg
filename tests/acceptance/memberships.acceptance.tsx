@@ -10,7 +10,7 @@ import { renderAcceptance, requestedDetailId } from './support';
 
 describe('Aceptación simulada — consulta de membresías', () => {
   it.each<[string, MembershipArea, string | undefined, string]>([
-    ['CA-MEM-01', 'client', undefined, '/services/memberships/[id]'],
+    ['CA-MEM-01', 'client', undefined, '/memberships/[id]'],
     ['CA-MEM-02', 'trainer', 'entrenador', '/trainer/account/memberships/[id]'],
   ])('%s: en el área %s comparo planes y el detalle conserva el precio y la cobertura elegidos', async (_id, area, role, pathname) => {
     jest.mocked(getMembershipPlans).mockResolvedValue([monthly, couple]);
@@ -30,6 +30,11 @@ describe('Aceptación simulada — consulta de membresías', () => {
     expect(screen.getByText('Acceso mensual para 2 personas')).toBeOnTheScreen();
     expect(screen.queryByText('$440')).toBeNull();
     expect(screen.queryByText('Acceso a rutinas y entrenamientos')).toBeNull();
+    if (area === 'trainer') {
+      expect(screen.queryByRole('button', { name: /Comprar por/ })).toBeNull();
+    } else {
+      expect(screen.getByRole('button', { name: 'Comprar por $780' })).toBeEnabled();
+    }
 
     await user.press(screen.getByRole('link', { name: `Ver detalle de la membresía ${couple.name}` }));
     expect(router.push).toHaveBeenCalledWith({ pathname, params: { id: couple.id } });
@@ -44,6 +49,11 @@ describe('Aceptación simulada — consulta de membresías', () => {
     expect(screen.getByText('Acceso mensual para 2 personas')).toBeOnTheScreen();
     expect(getMembershipPlan).toHaveBeenCalledWith(couple.id);
     expect(screen.queryByText('$440')).toBeNull();
+    if (area === 'trainer') {
+      expect(screen.queryByRole('button', { name: /Comprar por/ })).toBeNull();
+    } else {
+      expect(screen.getByRole('button', { name: 'Comprar por $780' })).toBeEnabled();
+    }
   });
 
   it('CA-MEM-03: al elegir la tarifa estudiantil conozco su requisito antes de decidir', async () => {
@@ -58,7 +68,7 @@ describe('Aceptación simulada — consulta de membresías', () => {
     expect(screen.queryByText('$440')).toBeNull();
     await user.press(screen.getByRole('link', { name: `Ver detalle de la membresía ${student.name}` }));
     expect(router.push).toHaveBeenCalledWith({
-      pathname: '/services/memberships/[id]', params: { id: student.id },
+      pathname: '/memberships/[id]', params: { id: student.id },
     });
     await view.rerender(<MembershipDetailView area="client" planId={requestedDetailId()} />);
 
@@ -87,7 +97,7 @@ describe('Aceptación simulada — consulta de membresías', () => {
 
     await user.press(screen.getByRole('link', { name: `Ver detalle de la membresía ${monthly.name}` }));
     expect(router.push).toHaveBeenCalledWith({
-      pathname: '/services/memberships/[id]', params: { id: monthly.id },
+      pathname: '/memberships/[id]', params: { id: monthly.id },
     });
     await view.rerender(<MembershipDetailView area="client" planId={requestedDetailId()} />);
     expect(await screen.findByRole('header', { name: 'REGULAR MENSUAL' })).toBeOnTheScreen();

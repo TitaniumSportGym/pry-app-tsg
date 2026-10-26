@@ -28,9 +28,11 @@ describe('Aceptación simulada — inicio de sesión', () => {
     expect(router.replace).toHaveBeenCalledWith('/');
     await view.rerender(<AccountView />);
     expect(await screen.findByText(sessionUser.email)).toBeOnTheScreen();
-    expect(screen.getByText('Sesión segura')).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeEnabled();
-    expect(screen.queryByText('Aún no has iniciado sesión')).toBeNull();
+    expect(screen.getByRole('header', { name: 'MÁS' })).toBeOnTheScreen();
+    expect(screen.getByText('Cliente')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Membresías Titanium' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'CERRAR SESIÓN' })).toBeEnabled();
+    expect(screen.queryByRole('header', { name: 'Inicia sesión' })).toBeNull();
   });
 
   it('CA-LOGIN-02: dadas credenciales rechazadas, puedo corregir la contraseña sin reiniciar la app', async () => {
@@ -56,6 +58,9 @@ describe('Aceptación simulada — inicio de sesión', () => {
     expect(router.replace).toHaveBeenCalledWith('/');
     await view.rerender(<AccountView />);
     expect(await screen.findByText(sessionUser.email)).toBeOnTheScreen();
+    expect(screen.getByText('Cliente')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'CERRAR SESIÓN' })).toBeEnabled();
+    expect(screen.queryByRole('header', { name: 'Inicia sesión' })).toBeNull();
   });
 
   it('CA-LOGIN-03: dada una cuenta con doble factor, la contraseña sola no abre una sesión', async () => {
@@ -71,8 +76,11 @@ describe('Aceptación simulada — inicio de sesión', () => {
 
     // Inspect the real session without completing the simulated OTP flow.
     await view.rerender(<AccountView />);
-    expect(await screen.findByText('Aún no has iniciado sesión')).toBeOnTheScreen();
+    expect(await screen.findByRole('header', { name: 'Inicia sesión' })).toBeOnTheScreen();
     expect(screen.queryByText(sessionUser.email)).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Cerrar sesión' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'CERRAR SESIÓN' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Membresías Titanium' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Iniciar sesión' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Crear cuenta' })).toBeEnabled();
   });
 });
