@@ -138,6 +138,54 @@ jobs:
           TEST_RESULT: ${{ steps.tests.outcome }}
         run: node scripts/ci-summary.cjs jest "Pruebas de integración" jest-integracion.json coverage/integracion/coverage-summary.json integracion.log
 
+  pruebas-aceptacion:
+    name: Pruebas de aceptación simuladas (Jest y RNTL)
+    needs: [analisis-estatico, pruebas-unitarias, pruebas-integracion]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: |
+          set -o pipefail
+          npm ci 2>&1 | tee aceptacion-instalacion.log
+
+      - name: Ejecutar pruebas de aceptación
+        id: tests
+        run: |
+          set -o pipefail
+          npm run test:acceptance -- --ci --runInBand --coverage \
+            --coverageDirectory=coverage/aceptacion \
+            --coverageReporters=text --coverageReporters=json-summary --coverageReporters=html \
+            --json --outputFile=jest-aceptacion.json 2>&1 | tee aceptacion.log
+
+      - name: Publicar resultados de aceptación en texto
+        if: always()
+        env:
+          TEST_RESULT: ${{ steps.tests.outcome }}
+        run: node scripts/ci-summary.cjs jest "Pruebas de aceptación simuladas (sin APK)" jest-aceptacion.json coverage/aceptacion/coverage-summary.json aceptacion.log
+
+      - name: Guardar evidencias de aceptación incluso ante fallos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pruebas-aceptacion-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            jest-aceptacion.json
+            aceptacion.log
+            aceptacion-instalacion.log
+            coverage/aceptacion/
+          if-no-files-found: warn
+          retention-days: 14
+
   pruebas-regresion:
     name: Pruebas de regresión (suite completa)
     needs: [analisis-estatico, pruebas-unitarias, pruebas-integracion]

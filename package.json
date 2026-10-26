@@ -45,6 +45,7 @@
     "test": "jest",
     "test:unit": "jest --testPathIgnorePatterns=/node_modules/ --testPathIgnorePatterns=/tests/integration/",
     "test:integration": "jest tests/integration",
+    "test:acceptance": "jest --config tests/acceptance/jest.config.cjs",
     "test:perf": "reassure"
   },
   "jest": {
