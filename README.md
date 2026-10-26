@@ -1,4 +1,5 @@
 # pry-app-tsg
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/TitaniumSportGym/pry-app-tsg)
 
 Aplicacion movil desarrollada con Expo, React Native y TypeScript. Usa Expo Router para la navegacion basada en archivos dentro de `src/app`.
 
