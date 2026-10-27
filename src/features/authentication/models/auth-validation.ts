@@ -10,7 +10,11 @@ export function validateEmail(value: string): EmailValidationResult {
     return { email, error: "Ingresa tu correo electrónico." };
   }
 
-  if (!/^\S+@\S+\.\S+$/.test(email)) {
+  // Preserve the existing permissive format: nonempty parts around @ and
+  // the last dot, with no whitespace. Each scan is linear, with no backtracking.
+  const at = email.indexOf("@", 1);
+  const dot = email.lastIndexOf(".");
+  if (at === -1 || dot <= at + 1 || dot === email.length - 1 || /\s/.test(email)) {
     return { email, error: "Ingresa un correo electrónico válido." };
   }
 

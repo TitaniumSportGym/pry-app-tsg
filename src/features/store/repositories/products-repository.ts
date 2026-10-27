@@ -25,9 +25,11 @@ export interface ProductsDataSource {
   getProduct(productId: number): Promise<Product>;
 }
 
+const DEFAULT_DATA_SOURCE: ProductsDataSource = { getProducts, getProduct };
+
 /** Store, catalog, home and product detail share one copy of the catalog. */
 export function createProductsRepository(
-  dataSource: ProductsDataSource = { getProducts, getProduct },
+  dataSource: ProductsDataSource = DEFAULT_DATA_SOURCE,
   cache: RepositoryCache = repositoryCache,
 ): ProductsRepository {
   return {

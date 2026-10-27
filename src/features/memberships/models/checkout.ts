@@ -1,3 +1,5 @@
+import { randomUUID } from 'expo-crypto';
+
 import { ApiError } from '@/types/auth';
 
 /**
@@ -42,11 +44,6 @@ export function parseCheckoutResponse(raw: unknown) {
   return isTrustedCheckoutUrl(checkoutUrl) ? { checkoutUrl } : null;
 }
 
-function createKey() {
-  const uuid = globalThis.crypto?.randomUUID?.();
-  return uuid ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
 const idempotencyKeys = new Map<string, string>();
 
 /**
@@ -57,7 +54,7 @@ export function getIdempotencyKey(signature: string) {
   const existing = idempotencyKeys.get(signature);
   if (existing) return existing;
 
-  const key = createKey();
+  const key = randomUUID();
   idempotencyKeys.set(signature, key);
   return key;
 }

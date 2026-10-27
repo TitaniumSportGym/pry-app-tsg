@@ -94,7 +94,11 @@ export function AppSplashScreen({ isReady }: AppSplashScreenProps) {
       return;
     }
 
-    SplashScreen.hideAsync().finally(() => setHasStarted(true));
+    SplashScreen.hideAsync()
+      .catch((error: unknown) => {
+        console.warn('No se pudo ocultar el splash nativo.', error);
+      })
+      .finally(() => setHasStarted(true));
   }, []);
 
   if (!isVisible) {

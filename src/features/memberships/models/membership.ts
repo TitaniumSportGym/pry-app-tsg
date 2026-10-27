@@ -1,5 +1,7 @@
 /** Membership plans from the public endpoint /api/memberships/plans. */
 
+import { formatMxnAmount } from '@/utils/money';
+
 export type MembershipPlanType = 'visit' | 'individual' | 'student' | 'group' | string;
 
 export interface MembershipPlan {
@@ -96,11 +98,7 @@ export function parseMembershipPlans(raw: unknown): MembershipPlan[] {
 }
 
 export function formatPrice(amount: number) {
-  const rounded = Math.round(amount * 100) / 100;
-  const [integer, decimals] = rounded.toFixed(2).split('.');
-  const withSeparators = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-
-  return decimals === '00' ? `$${withSeparators}` : `$${withSeparators}.${decimals}`;
+  return formatMxnAmount(amount, true);
 }
 
 function plural(count: number, singular: string, pluralForm: string) {

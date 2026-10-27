@@ -25,8 +25,10 @@ export interface MembershipsDataSource {
   getMembershipPlan(planId: string): Promise<MembershipPlan>;
 }
 
+const DEFAULT_DATA_SOURCE: MembershipsDataSource = { getMembershipPlans, getMembershipPlan };
+
 export function createMembershipsRepository(
-  dataSource: MembershipsDataSource = { getMembershipPlans, getMembershipPlan },
+  dataSource: MembershipsDataSource = DEFAULT_DATA_SOURCE,
   cache: RepositoryCache = repositoryCache,
 ): MembershipsRepository {
   return {

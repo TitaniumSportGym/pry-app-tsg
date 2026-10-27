@@ -9,5 +9,9 @@ export function getApiBaseUrl(): string {
     );
   }
 
-  return baseUrl.replace(/\/+$/, "");
+  let end = baseUrl.length;
+  while (end > 0 && baseUrl[end - 1] === "/") {
+    end -= 1;
+  }
+  return baseUrl.slice(0, end);
 }
