@@ -1,3 +1,4 @@
+
 name: CI de Titanium Mobile
 
 permissions:
@@ -228,10 +229,25 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  # ---------------------------------------------------------
+  # SONARQUBE CLOUD - ANALISIS DE SEGURIDAD Y CALIDAD
+  # ---------------------------------------------------------
   sonarqube:
     name: Seguridad y calidad (SonarQube Cloud)
+
     needs: [analisis-estatico, pruebas-regresion]
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+
+    # Evitar analizar push de ramas feature/* en el plan Free.
+    # Analizar develop y Pull Requests dirigidos a develop.
+    # Los PR externos no reciben secretos por seguridad.
+    if: >-
+      ${{
+        (github.event_name == 'push' && github.ref == 'refs/heads/develop') ||
+        (github.event_name == 'pull_request' &&
+         github.base_ref == 'develop' &&
+         github.event.pull_request.head.repo.full_name == github.repository)
+      }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -240,6 +256,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
 
       - name: Descargar cobertura de regresión
         uses: actions/download-artifact@v4
