@@ -4,16 +4,19 @@ import { useCallback } from 'react';
 import { getAccessErrorMessage } from '@/features/authorization/models/access-errors';
 import { HOME_ACTIONS, type HomeActionId } from '@/features/home/models/home-actions';
 import { getInitials, getMemberId, pickRecommendedProducts } from '@/features/home/models/home';
-import { getMyPayments } from '@/features/payments/api/payments-api';
 import {
   formatPaymentAmount,
   formatPaymentDate,
   getPaymentStatusLabel,
 } from '@/features/payments/models/payment';
-import { getProducts } from '@/features/store/api/products-api';
+import {
+  PAYMENT_KEYS,
+  paymentsRepository,
+} from '@/features/payments/repositories/payments-repository';
 import { formatProductPrice } from '@/features/store/models/product';
+import { productsRepository } from '@/features/store/repositories/products-repository';
 import { useAuth } from '@/hooks/use-auth';
-import { useAuthorizedResource } from '@/hooks/use-authorized-resource';
+import { useAuthorizedResource, type LoadOptions } from '@/hooks/use-authorized-resource';
 import { useDelayedFlag } from '@/hooks/use-delayed-flag';
 
 const SKELETON_DELAY_MS = 300;
@@ -28,14 +31,15 @@ export function useHomeViewModel() {
   const isAuthenticated = status === 'authenticated';
   const memberId = isAuthenticated ? getMemberId(user?.email) : null;
 
-  const products = useAuthorizedResource(getProducts);
+  const products = useAuthorizedResource(productsRepository.getProducts);
 
   // Guests have no payments, so no request is made without a session.
   const loadPayments = useCallback(
-    async () => (isAuthenticated ? getMyPayments() : []),
+    async (options: LoadOptions) =>
+      isAuthenticated ? paymentsRepository.getRecentPayments(options) : [],
     [isAuthenticated],
   );
-  const payments = useAuthorizedResource(loadPayments);
+  const payments = useAuthorizedResource(loadPayments, { reloadOn: [PAYMENT_KEYS.all] });
   const lastPayment = payments.data?.[0] ?? null;
 
   const showProductsSkeleton = useDelayedFlag(products.isLoading, SKELETON_DELAY_MS);

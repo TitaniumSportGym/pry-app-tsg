@@ -60,7 +60,8 @@ describe('Aceptación simulada — consulta del catálogo', () => {
     for (const product of [creatine, shirt, protein]) {
       expect(screen.getByText(product.name)).toBeOnTheScreen();
     }
-    expect(getProducts).toHaveBeenCalledTimes(2); // Tienda then Catálogo; filtering is local.
+    // Tienda loads the catalog; Catálogo reuses the repository's cached copy and filters locally.
+    expect(getProducts).toHaveBeenCalledTimes(1);
     expect(router.push).toHaveBeenCalledTimes(1);
   });
 
@@ -135,7 +136,8 @@ describe('Aceptación simulada — consulta del catálogo', () => {
     expect(screen.getByLabelText('Buscar')).toHaveDisplayValue('youngla');
     expect(screen.queryByText(creatine.name)).toBeNull();
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(getProducts).toHaveBeenCalledTimes(3);
+    // The failed request is not cached; the successful retry is, so Catálogo makes no new request.
+    expect(getProducts).toHaveBeenCalledTimes(2);
   });
 
   it('CA-CAT-05: sin productos, Tienda y Catálogo informan vacío sin confundirlo con errores o filtros sin coincidencias', async () => {

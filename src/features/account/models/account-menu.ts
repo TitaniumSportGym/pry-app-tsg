@@ -93,6 +93,7 @@ const ROLE_SECTIONS: Record<UserRole, AccountMenuSection[]> = {
           id: 'payments',
           label: 'Pagos y comprobantes',
           icon: { ios: 'doc.text', android: 'receipt_long', web: 'receipt_long' },
+          route: '/account/payments',
         },
         {
           id: 'orders',
@@ -118,6 +119,7 @@ const ROLE_SECTIONS: Record<UserRole, AccountMenuSection[]> = {
           id: 'routines',
           label: 'Mis rutinas',
           icon: { ios: 'dumbbell', android: 'fitness_center', web: 'fitness_center' },
+          route: '/account/routines',
         },
         {
           id: 'progress',

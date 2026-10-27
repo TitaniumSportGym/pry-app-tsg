@@ -1,6 +1,7 @@
 import { SymbolView } from 'expo-symbols';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { IconButton } from '@/components/ui/icon-button';
 import { AppColors, AppFonts, AppFontSizes, AppSpacing } from '@/theme/tokens';
 
 interface HomeHeaderProps {
@@ -31,17 +32,11 @@ export function HomeHeader({ eyebrow, greeting, initials }: HomeHeaderProps) {
           {greeting}
         </Text>
       </View>
-      <View
-        accessible
-        accessibilityLabel="Notificaciones, próximamente"
-        accessibilityState={{ disabled: true }}
-        style={styles.bell}>
-        <SymbolView
-          name={{ ios: 'bell', android: 'notifications', web: 'notifications' }}
-          size={20}
-          tintColor={AppColors.neutral.placeholder}
-        />
-      </View>
+      <IconButton
+        icon={{ ios: 'bell', android: 'notifications', web: 'notifications' }}
+        label="Notificaciones, próximamente"
+        style={styles.bell}
+      />
     </View>
   );
 }
@@ -75,13 +70,6 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
   bell: {
-    width: 44,
-    height: 44,
-    borderWidth: 1,
-    borderColor: AppColors.border.soft,
-    borderRadius: 22,
-    backgroundColor: AppColors.surface.default,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginRight: -10,
   },
 });

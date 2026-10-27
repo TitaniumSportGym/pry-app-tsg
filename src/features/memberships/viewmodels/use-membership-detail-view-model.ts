@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useCallback } from 'react';
 
 import { getAccessErrorMessage } from '@/features/authorization/models/access-errors';
-import { getMembershipPlan } from '@/features/memberships/api/memberships-api';
 import {
   formatDuration,
   formatPeople,
@@ -16,8 +15,9 @@ import {
   getMembershipRoutes,
   type MembershipArea,
 } from '@/features/memberships/models/membership-area';
+import { membershipsRepository } from '@/features/memberships/repositories/memberships-repository';
 import { useMembershipPurchase } from '@/features/memberships/viewmodels/use-membership-purchase';
-import { useAuthorizedResource } from '@/hooks/use-authorized-resource';
+import { useAuthorizedResource, type LoadOptions } from '@/hooks/use-authorized-resource';
 import { useDelayedFlag } from '@/hooks/use-delayed-flag';
 import { ApiError } from '@/types/auth';
 
@@ -28,13 +28,16 @@ export function useMembershipDetailViewModel(area: MembershipArea, planId: unkno
   const routes = getMembershipRoutes(area);
   const purchase = useMembershipPurchase(area);
 
-  const load = useCallback(async () => {
-    if (!isValidPlanId(planId)) {
-      throw new ApiError(NOT_FOUND_MESSAGE, 404);
-    }
+  const load = useCallback(
+    async (options: LoadOptions) => {
+      if (!isValidPlanId(planId)) {
+        throw new ApiError(NOT_FOUND_MESSAGE, 404);
+      }
 
-    return getMembershipPlan(planId);
-  }, [planId]);
+      return membershipsRepository.getPlan(planId, options);
+    },
+    [planId],
+  );
 
   const resource = useAuthorizedResource(load);
   const plan = resource.data;

@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 
 import { getAccessErrorMessage } from '@/features/authorization/models/access-errors';
-import { getMembershipPlans } from '@/features/memberships/api/memberships-api';
 import {
   formatDuration,
   formatPrice,
@@ -14,6 +13,7 @@ import {
   getMembershipRoutes,
   type MembershipArea,
 } from '@/features/memberships/models/membership-area';
+import { membershipsRepository } from '@/features/memberships/repositories/memberships-repository';
 import { useMembershipPurchase } from '@/features/memberships/viewmodels/use-membership-purchase';
 import { useAuthorizedResource } from '@/hooks/use-authorized-resource';
 import { useDelayedFlag } from '@/hooks/use-delayed-flag';
@@ -22,7 +22,7 @@ const SKELETON_DELAY_MS = 300;
 
 export function useMembershipsViewModel(area: MembershipArea) {
   const routes = getMembershipRoutes(area);
-  const resource = useAuthorizedResource(getMembershipPlans);
+  const resource = useAuthorizedResource(membershipsRepository.getPlans);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const purchase = useMembershipPurchase(area);
 

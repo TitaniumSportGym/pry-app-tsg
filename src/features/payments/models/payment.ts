@@ -9,7 +9,10 @@ export interface Payment {
   status: PaymentStatus;
   /** When it was paid, or when it was created if it is not paid yet. */
   date: Date;
+  orderId: string | null;
   orderNumber: string | null;
+  /** How it was paid, as the backend sends it (online_checkout, cash, card_terminal…). */
+  method: string;
 }
 
 const STATUS_ALIASES: Record<string, PaymentStatus> = {
@@ -61,7 +64,14 @@ export function parsePayment(raw: unknown): Payment | null {
     currency: typeof raw.currency === "string" ? raw.currency : "MXN",
     status: STATUS_ALIASES[rawStatus] ?? "unknown",
     date,
+    orderId:
+      typeof raw.orderId === "string" && raw.orderId
+        ? raw.orderId
+        : order && typeof order.id === "string"
+          ? order.id
+          : null,
     orderNumber: order && typeof order.orderNumber === "string" ? order.orderNumber : null,
+    method: typeof raw.method === "string" ? raw.method.toLowerCase() : "",
   };
 }
 

@@ -1,19 +1,11 @@
 import { router, type Href } from 'expo-router';
 import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
 import { StatusBar } from 'expo-status-bar';
 import type { PropsWithChildren } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BACK_ICON, IconButton } from '@/components/ui/icon-button';
 import { AppColors, AppFonts, AppFontSizes, AppSpacing } from '@/theme/tokens';
 
 interface AuthFormScreenProps extends PropsWithChildren {
@@ -66,22 +58,12 @@ export function AuthFormScreen({
                 source={require('@/assets/images/imagesTSG/auth-gym-hero.png')}
                 style={styles.heroImage}
               />
-              <Pressable
-                accessibilityLabel="Volver"
-                accessibilityRole="button"
-                hitSlop={8}
+              <IconButton
+                icon={BACK_ICON}
+                label="Volver"
+                style={[styles.backButton, { top: insets.top + AppSpacing.two }]}
                 onPress={handleBack}
-                style={({ pressed }) => [
-                  styles.backButton,
-                  { top: insets.top + AppSpacing.two },
-                  pressed && styles.pressed,
-                ]}>
-                <SymbolView
-                  name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
-                  size={22}
-                  tintColor={AppColors.neutral.text}
-                />
-              </Pressable>
+              />
               <View style={styles.brandBadge}>
                 <Image
                   accessibilityLabel="Titanium Sport Gym"
@@ -140,17 +122,9 @@ const styles = StyleSheet.create({
     minHeight: 164,
   },
   backButton: {
-    width: 44,
-    height: 44,
     position: 'absolute',
     top: AppSpacing.two,
-    left: AppSpacing.three,
-    borderWidth: 1,
-    borderColor: 'rgba(16,16,16,0.08)',
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    left: AppSpacing.two,
   },
   brandBadge: {
     width: 70,
@@ -173,9 +147,6 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: AppSpacing.four,
     paddingBottom: AppSpacing.five,
-  },
-  pressed: {
-    opacity: 0.62,
   },
   heading: {
     marginTop: 52,

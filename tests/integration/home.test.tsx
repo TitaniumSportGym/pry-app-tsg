@@ -65,7 +65,9 @@ const paidPayment: Payment = {
   currency: "MXN",
   status: "paid",
   date: new Date(2026, 9, 12),
+  orderId: "o1",
   orderNumber: "ORD-2026-000002",
+  method: "online_checkout",
 };
 
 async function renderHome(session: "guest" | "client") {

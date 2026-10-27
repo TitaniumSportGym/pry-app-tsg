@@ -17,6 +17,7 @@ export const AppColors = {
     soft: '#FFF6F5',
     softSelected: '#FDE5E2',
     muted: '#F3F1F0',
+    input: '#F3F3F4',
     dark: '#101010',
     darkElevated: '#1A1A1A',
     darkSelected: '#2B2B2B',
@@ -41,6 +42,10 @@ export const AppColors = {
     warning: '#B54708',
     warningSoft: '#FEF0C7',
   },
+} as const;
+
+export const AppShadows = {
+  card: '0 5px 14px rgba(15, 15, 15, 0.08)',
 } as const;
 
 export const AppFonts = {
