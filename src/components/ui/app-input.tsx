@@ -6,6 +6,7 @@ import {
   Text,
   TextInput,
   View,
+  type TextInputInstance,
   type TextInputProps,
 } from 'react-native';
 
@@ -19,7 +20,7 @@ interface AppInputProps extends TextInputProps {
   leftIcon: SymbolName;
 }
 
-export const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput(
+export const AppInput = forwardRef<TextInputInstance, AppInputProps>(function AppInput(
   { label, error, leftIcon, secureTextEntry = false, onBlur, onFocus, style, ...props },
   ref,
 ) {

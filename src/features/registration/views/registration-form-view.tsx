@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, View, type TextInputInstance } from "react-native";
 
 import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
 import { AppInput } from "@/components/ui/app-input";
@@ -9,8 +9,8 @@ import { AppColors, AppFonts, AppFontSizes, AppSpacing } from "@/theme/tokens";
 
 export function RegistrationFormView() {
   const viewModel = useRegistrationViewModel();
-  const passwordInput = useRef<TextInput>(null);
-  const confirmPasswordInput = useRef<TextInput>(null);
+  const passwordInput = useRef<TextInputInstance>(null);
+  const confirmPasswordInput = useRef<TextInputInstance>(null);
 
   return (
     <View style={styles.form}>

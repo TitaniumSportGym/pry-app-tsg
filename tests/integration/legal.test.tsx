@@ -98,7 +98,7 @@ describe("Integración — aviso de privacidad", () => {
   });
 
   it("abre el correo del gimnasio para ejercer los derechos ARCO", async () => {
-    const openUrl = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+    const openUrl = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
     await renderAs(<PrivacyView />);
 
     await userEvent.setup().press(await screen.findByRole("button", { name: "Ejercer mis derechos" }));
