@@ -30,8 +30,10 @@ export interface PaymentsDataSource {
   getMyPaymentHistory(): Promise<PaymentHistoryEntry[]>;
 }
 
+const DEFAULT_DATA_SOURCE: PaymentsDataSource = { getMyPayments, getMyPaymentHistory };
+
 export function createPaymentsRepository(
-  dataSource: PaymentsDataSource = { getMyPayments, getMyPaymentHistory },
+  dataSource: PaymentsDataSource = DEFAULT_DATA_SOURCE,
   cache: RepositoryCache = repositoryCache,
 ): PaymentsRepository {
   return {

@@ -27,8 +27,10 @@ export interface RoutinesDataSource {
   getClientRoutine(routineId: string): Promise<ClientRoutine>;
 }
 
+const DEFAULT_DATA_SOURCE: RoutinesDataSource = { getClientRoutines, getClientRoutine };
+
 export function createRoutinesRepository(
-  dataSource: RoutinesDataSource = { getClientRoutines, getClientRoutine },
+  dataSource: RoutinesDataSource = DEFAULT_DATA_SOURCE,
   cache: RepositoryCache = repositoryCache,
 ): RoutinesRepository {
   return {
