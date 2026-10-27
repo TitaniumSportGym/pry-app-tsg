@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "pry-app-tsg",
@@ -11,6 +12,7 @@
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "package": "com.titaniumsportgym.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -25,18 +27,26 @@
     },
     "plugins": [
       "expo-router",
-      [
+          [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#EF3C33",
+          "image": "./assets/images/icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e2d585a9-0d83-4bcb-ac53-d1a240ed6e74"
+      }
     }
   }
 }

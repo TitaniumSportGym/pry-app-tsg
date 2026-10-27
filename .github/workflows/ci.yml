@@ -1,0 +1,292 @@
+
+name: CI de Titanium Mobile
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  analisis-estatico:
+    name: Análisis estático (ESLint y TypeScript)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        id: dependencias
+        run: npm ci
+
+      - name: Generar tipos de Expo Router
+        id: rutas
+        if: ${{ steps.dependencias.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          npx expo customize tsconfig.json 2>&1 | tee expo-routes.log
+
+      - name: Comprobar TypeScript
+        id: typescript
+        if: ${{ steps.rutas.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          npx tsc --noEmit 2>&1 | tee typescript.log
+
+      - name: Ejecutar ESLint
+        id: eslint
+        if: ${{ !cancelled() && steps.dependencias.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          npm run lint 2>&1 | tee eslint.log
+
+      - name: Publicar resultados del análisis estático en texto
+        if: always()
+        env:
+          TYPESCRIPT_RESULT: ${{ steps.typescript.outcome }}
+          ESLINT_RESULT: ${{ steps.eslint.outcome }}
+          DEPS_RESULT: ${{ steps.dependencias.outcome }}
+          ROUTES_RESULT: ${{ steps.rutas.outcome }}
+        run: |
+          node scripts/ci-summary.cjs static
+          {
+            echo '### Generación de rutas Expo Router'
+            echo "- Resultado: **$ROUTES_RESULT**"
+            if [ "$ROUTES_RESULT" = 'failure' ] && [ -f expo-routes.log ]; then
+              echo '```text'
+              tail -n 50 expo-routes.log
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  pruebas-unitarias:
+    name: Pruebas unitarias (Jest y RNTL)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar pruebas unitarias
+        id: tests
+        run: |
+          set -o pipefail
+          npm run test:unit -- --ci --runInBand --coverage \
+            --coverageDirectory=coverage/unitarias \
+            --coverageReporters=text --coverageReporters=json-summary \
+            --json --outputFile=jest-unitarias.json 2>&1 | tee unitarias.log
+
+      - name: Publicar resultados unitarios en texto
+        if: always()
+        env:
+          TEST_RESULT: ${{ steps.tests.outcome }}
+        run: node scripts/ci-summary.cjs jest "Pruebas unitarias" jest-unitarias.json coverage/unitarias/coverage-summary.json unitarias.log
+
+  pruebas-integracion:
+    name: Pruebas de integración (Jest y RNTL)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar pruebas de integración
+        id: tests
+        run: |
+          set -o pipefail
+          npm run test:integration -- --ci --runInBand --coverage \
+            --coverageDirectory=coverage/integracion \
+            --coverageReporters=text --coverageReporters=json-summary \
+            --json --outputFile=jest-integracion.json 2>&1 | tee integracion.log
+
+      - name: Publicar resultados de integración en texto
+        if: always()
+        env:
+          TEST_RESULT: ${{ steps.tests.outcome }}
+        run: node scripts/ci-summary.cjs jest "Pruebas de integración" jest-integracion.json coverage/integracion/coverage-summary.json integracion.log
+
+  pruebas-aceptacion:
+    name: Pruebas de aceptación simuladas (Jest y RNTL)
+    needs: [analisis-estatico, pruebas-unitarias, pruebas-integracion]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: |
+          set -o pipefail
+          npm ci 2>&1 | tee aceptacion-instalacion.log
+
+      - name: Ejecutar pruebas de aceptación
+        id: tests
+        run: |
+          set -o pipefail
+          npm run test:acceptance -- --ci --runInBand --coverage \
+            --coverageDirectory=coverage/aceptacion \
+            --coverageReporters=text --coverageReporters=json-summary --coverageReporters=html \
+            --json --outputFile=jest-aceptacion.json 2>&1 | tee aceptacion.log
+
+      - name: Publicar resultados de aceptación en texto
+        if: always()
+        env:
+          TEST_RESULT: ${{ steps.tests.outcome }}
+        run: node scripts/ci-summary.cjs jest "Pruebas de aceptación simuladas (sin APK)" jest-aceptacion.json coverage/aceptacion/coverage-summary.json aceptacion.log
+
+      - name: Guardar evidencias de aceptación incluso ante fallos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pruebas-aceptacion-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            jest-aceptacion.json
+            aceptacion.log
+            aceptacion-instalacion.log
+            coverage/aceptacion/
+          if-no-files-found: warn
+          retention-days: 14
+
+  pruebas-regresion:
+    name: Pruebas de regresión (suite completa)
+    needs: [analisis-estatico, pruebas-unitarias, pruebas-integracion]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar todas las pruebas existentes
+        id: tests
+        run: |
+          set -o pipefail
+          npm test -- --ci --runInBand --coverage \
+            --coverageDirectory=coverage/regresion \
+            --coverageReporters=text --coverageReporters=json-summary \
+            --json --outputFile=jest-regresion.json 2>&1 | tee regresion.log
+
+      - name: Publicar resultados de regresión en texto
+        if: always()
+        env:
+          TEST_RESULT: ${{ steps.tests.outcome }}
+        run: node scripts/ci-summary.cjs jest "Pruebas de regresión" jest-regresion.json coverage/regresion/coverage-summary.json regresion.log
+
+  pruebas-rendimiento:
+    name: Pruebas de rendimiento (Reassure)
+    if: ${{ github.event_name == 'pull_request' }}
+    needs: [pruebas-regresion]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener código del repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+
+      - name: Medir línea base de la rama destino
+        id: linea-base
+        env:
+          BASE_BRANCH: ${{ github.base_ref }}
+        run: |
+          CURRENT_SHA="$(git rev-parse HEAD)"
+          BASELINE_BRANCH="$BASE_BRANCH"
+
+          # Verificar si la rama destino contiene Reassure
+          if ! git show "origin/$BASE_BRANCH:package.json" | grep -q '"reassure"'; then
+            if [ "$BASE_BRANCH" = "main" ] && git show "origin/develop:package.json" | grep -q '"reassure"'; then
+              echo "::notice::main todavía no contiene Reassure. Se utilizará develop como línea base inicial."
+              BASELINE_BRANCH="develop"
+            else
+              echo "::error::No se encontró una línea base válida de Reassure."
+              exit 1
+            fi
+          fi
+
+          echo "Generando línea base desde $BASELINE_BRANCH"
+          git switch --detach "origin/$BASELINE_BRANCH"
+
+          npm ci
+          npx reassure --baseline
+
+          echo "Regresando al commit del Pull Request"
+          git switch --detach "$CURRENT_SHA"
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Medir rama actual y comparar
+        id: comparar
+        run: npx reassure --branch "${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+
+      - name: Publicar resultados de rendimiento en texto
+        if: always()
+        env:
+          BASELINE_RESULT: ${{ steps.linea-base.outcome }}
+          COMPARE_RESULT: ${{ steps.comparar.outcome }}
+        run: |
+          {
+            echo '## Pruebas de rendimiento (Reassure)'
+            echo "- Línea base: **$BASELINE_RESULT**"
+            echo "- Comparación: **$COMPARE_RESULT**"
+            echo ''
+            if [ -f .reassure/output.md ]; then
+              cat .reassure/output.md
+            else
+              echo 'No hay informe de comparación disponible. Revisa los logs del trabajo; no se considera una prueba aprobada sin resultados.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

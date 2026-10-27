@@ -1,56 +1,109 @@
-# Welcome to your Expo app 👋
+# pry-app-tsg
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/TitaniumSportGym/pry-app-tsg)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicacion movil desarrollada con Expo, React Native y TypeScript. Usa Expo Router para la navegacion basada en archivos dentro de `src/app`.
 
-## Get started
+## Requisitos
 
-1. Install dependencies
+- Node.js 22.13.x o superior compatible con Expo SDK 57.
+- npm.
+- Expo Go instalado en el celular, o un emulador de Android/iOS configurado.
 
-   ```bash
-   npm install
-   ```
+## Instalacion
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Desde la raiz del proyecto, instala las dependencias:
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Ejecutar el proyecto
 
-### Other setup steps
+Inicia el servidor de desarrollo de Expo:
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```bash
+npx expo start
+```
 
-## Learn more
+Despues de ejecutar el comando, Expo mostrara un codigo QR en la terminal.
 
-To learn more about developing your project with Expo, look at the following resources:
+- En un celular: escanea el QR con Expo Go.
+- En Android Emulator: presiona `a` en la terminal.
+- En iOS Simulator: presiona `i` en la terminal.
+- En navegador web: presiona `w` o ejecuta `npm run web`.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Si el celular no logra conectarse, prueba el modo tunnel:
 
-## Join the community
+```bash
+npx expo start --tunnel
+```
 
-Join our community of developers creating universal apps.
+## Scripts disponibles
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+npm run start    # inicia Expo
+npm run android  # abre en Android
+npm run ios      # abre en iOS
+npm run web      # abre en web
+npm run lint     # ejecuta el linter de Expo
+```
+
+## Verificar el proyecto
+
+Antes de entregar cambios, ejecuta:
+
+```bash
+npm run lint
+npx tsc --noEmit
+```
+
+Para la Actividad 4, ejecuta `npm run test:acceptance -- --ci --runInBand`.
+Los criterios funcionales, mocks, informes de CI y diferencias frente a una E2E
+de la APK se documentan en [tests/acceptance/README.md](tests/acceptance/README.md).
+
+La generación manual de APK Android con EAS Build, sus verificaciones de calidad
+y la configuración de `EXPO_TOKEN` se describen en [docs/eas-preview.md](docs/eas-preview.md).
+
+## Estructura principal
+
+```text
+src/
+|-- app/                    Rutas y layouts delgados de Expo Router
+|-- components/             Componentes visuales reutilizables
+|-- features/
+|   |-- authentication/
+|   |-- registration/
+|   |-- password-recovery/
+|   `-- home/
+|       |-- models/         Reglas, tipos y validaciones de dominio
+|       |-- viewmodels/     Estado y acciones de cada pantalla
+|       |-- views/          Interfaz y composicion visual
+|       |-- api/            Adaptadores HTTP, cuando la funcion los necesita
+|       `-- data/           Adaptadores de infraestructura no HTTP
+|-- providers/              Estado global, como la sesion autenticada
+|-- services/               Cliente HTTP, sesion segura y servicios existentes
+|-- theme/                  Tokens globales de diseno
+`-- types/                  Contratos compartidos con el backend
+
+assets/                     Imagenes, iconos y recursos visuales
+```
+
+## Arquitectura MVVM
+
+Las funcionalidades de la aplicacion siguen MVVM organizado por feature:
+
+- **Model:** valida y representa las reglas del dominio sin renderizar interfaz.
+- **ViewModel:** es un hook `use-*-view-model` que administra estado, ejecuta casos de uso y decide la navegacion posterior.
+- **View:** renderiza componentes y delega los eventos al ViewModel.
+- **Route:** obtiene parametros de Expo Router y monta la View correspondiente.
+
+Las Views no deben importar `services/` ni `api/` directamente. Los ViewModels pueden usar esas capas y los Models deben mantenerse independientes de React siempre que no representen estado compartido. Los componentes de `src/components` no contienen reglas de una funcionalidad concreta.
+
+## Notas
+
+- No edites carpetas nativas `ios/` o `android/` si no existen; Expo las genera cuando se necesitan.
+- Para instalar paquetes compatibles con esta version de Expo, usa:
+
+```bash
+npx expo install nombre-del-paquete
+```
