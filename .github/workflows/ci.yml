@@ -237,19 +237,33 @@ jobs:
           node-version: 24
           cache: npm
 
+
       - name: Medir línea base de la rama destino
         id: linea-base
         env:
           BASE_BRANCH: ${{ github.base_ref }}
         run: |
           CURRENT_SHA="$(git rev-parse HEAD)"
-          git switch --detach "origin/$BASE_BRANCH"
-          if ! grep -q '"reassure"' package.json; then
-            echo "::error::La rama $BASE_BRANCH no tiene Reassure. No se puede validar el rendimiento sin línea base."
-            exit 1
+          BASELINE_BRANCH="$BASE_BRANCH"
+
+          # Verificar si la rama destino contiene Reassure
+          if ! git show "origin/$BASE_BRANCH:package.json" | grep -q '"reassure"'; then
+            if [ "$BASE_BRANCH" = "main" ] && git show "origin/develop:package.json" | grep -q '"reassure"'; then
+              echo "::notice::main todavía no contiene Reassure. Se utilizará develop como línea base inicial."
+              BASELINE_BRANCH="develop"
+            else
+              echo "::error::No se encontró una línea base válida de Reassure."
+              exit 1
+            fi
           fi
+
+          echo "Generando línea base desde $BASELINE_BRANCH"
+          git switch --detach "origin/$BASELINE_BRANCH"
+
           npm ci
           npx reassure --baseline
+
+          echo "Regresando al commit del Pull Request"
           git switch --detach "$CURRENT_SHA"
 
       - name: Instalar dependencias
