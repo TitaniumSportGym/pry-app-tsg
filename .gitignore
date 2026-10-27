@@ -155,3 +155,10 @@ Desktop.ini
 # Miscellaneous
 # --------------------------------------------------
 *.orig
+
+# Reglas adicionales de develop
+.kotlin/
+*.orig.*
+.env*.local
+.reassure/
+example
