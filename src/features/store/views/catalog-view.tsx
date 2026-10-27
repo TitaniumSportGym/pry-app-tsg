@@ -1,18 +1,14 @@
 import { StatusBar } from 'expo-status-bar';
-import { SymbolView } from 'expo-symbols';
-import {
-  FlatList,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useRef } from 'react';
+import { FlatList, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FilterChip } from '@/components/ui/filter-chip';
+import { BACK_ICON, IconButton } from '@/components/ui/icon-button';
+import { Pagination } from '@/components/ui/pagination';
 import { EmptyState, ErrorState } from '@/components/ui/screen-state';
 import { SearchField } from '@/components/ui/search-field';
+import type { ProductCardItem } from '@/features/store/models/product-card-item';
 import { useCatalogViewModel } from '@/features/store/viewmodels/use-catalog-view-model';
 import { ProductCard } from '@/features/store/views/product-card';
 import { CatalogSkeleton } from '@/features/store/views/store-skeletons';
@@ -27,23 +23,23 @@ interface CatalogViewProps {
 export function CatalogView({ category, query }: CatalogViewProps) {
   const viewModel = useCatalogViewModel({ category, q: query });
   const isReady = !viewModel.isLoading && !viewModel.errorMessage;
+  const listRef = useRef<FlatList<ProductCardItem>>(null);
+  const { pagination } = viewModel;
+
+  function changePage(page: number) {
+    pagination.setPage(page);
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }
 
   const header = (
     <View style={styles.headerBlock}>
       <View style={styles.header}>
-        <Pressable
-          accessibilityLabel="Regresar"
-          accessibilityRole="button"
-          hitSlop={8}
-          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+        <IconButton
+          icon={BACK_ICON}
+          label="Regresar"
+          style={styles.back}
           onPress={viewModel.goBack}
-        >
-          <SymbolView
-            name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
-            size={20}
-            tintColor={AppColors.neutral.text}
-          />
-        </Pressable>
+        />
         <Text
           accessibilityRole="header"
           adjustsFontSizeToFit
@@ -66,13 +62,13 @@ export function CatalogView({ category, query }: CatalogViewProps) {
           keyboardShouldPersistTaps="handled"
           showsHorizontalScrollIndicator={false}
         >
-          <Chip
+          <FilterChip
             label="Todos"
             selected={viewModel.selectedCategoryId === null}
             onPress={() => viewModel.selectCategory(null)}
           />
           {viewModel.categories.map((item) => (
-            <Chip
+            <FilterChip
               key={item.id}
               label={item.name}
               selected={viewModel.selectedCategoryId === item.id}
@@ -88,6 +84,7 @@ export function CatalogView({ category, query }: CatalogViewProps) {
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <StatusBar style="dark" />
       <FlatList
+        ref={listRef}
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.content}
         data={isReady ? viewModel.products : []}
@@ -110,6 +107,19 @@ export function CatalogView({ category, query }: CatalogViewProps) {
             />
           )
         }
+        ListFooterComponent={
+          isReady ? (
+            <Pagination
+              itemLabel="productos"
+              page={pagination.page}
+              pageCount={pagination.pageCount}
+              rangeEnd={pagination.rangeEnd}
+              rangeStart={pagination.rangeStart}
+              totalItems={pagination.totalItems}
+              onPageChange={changePage}
+            />
+          ) : undefined
+        }
         ListHeaderComponent={header}
         numColumns={2}
         refreshControl={
@@ -128,25 +138,6 @@ export function CatalogView({ category, query }: CatalogViewProps) {
   );
 }
 
-interface ChipProps {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}
-
-function Chip({ label, selected, onPress }: ChipProps) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      style={[styles.chip, selected && styles.chipSelected]}
-      onPress={onPress}
-    >
-      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: AppColors.surface.default },
   content: {
@@ -160,16 +151,8 @@ const styles = StyleSheet.create({
     paddingBottom: 112,
   },
   headerBlock: { gap: 14 },
-  header: { alignItems: 'center', flexDirection: 'row', gap: AppSpacing.three },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderWidth: 1,
-    borderColor: AppColors.border.default,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  header: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+  back: { marginLeft: -10 },
   title: {
     flex: 1,
     color: AppColors.neutral.black,
@@ -179,23 +162,5 @@ const styles = StyleSheet.create({
     lineHeight: 42,
   },
   chips: { gap: AppSpacing.two },
-  chip: {
-    height: 38,
-    borderWidth: 1,
-    borderColor: AppColors.border.default,
-    borderRadius: 18,
-    backgroundColor: AppColors.surface.default,
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-  },
-  chipSelected: { borderColor: AppColors.neutral.black, backgroundColor: AppColors.neutral.black },
-  chipText: {
-    color: AppColors.neutral.description,
-    fontFamily: AppFonts.label,
-    fontSize: AppFontSizes.label,
-    lineHeight: 20,
-  },
-  chipTextSelected: { color: AppColors.neutral.white },
   row: { gap: 20 },
-  pressed: { opacity: 0.7 },
 });

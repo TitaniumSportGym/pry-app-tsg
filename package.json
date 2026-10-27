@@ -16,13 +16,15 @@
     "expo-status-bar": "~58.0.4",
     "expo-symbols": "~58.0.4",
     "expo-system-ui": "~58.0.6",
+    "expo-video": "~58.0.12",
     "expo-web-browser": "~58.0.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.0",
     "react-native-safe-area-context": "~5.10.1",
     "react-native-screens": "~4.30.0",
-    "react-native-web": "^0.21.4"
+    "react-native-web": "^0.21.4",
+    "react-native-webview": "14.0.1"
   },
   "devDependencies": {
     "@testing-library/react-native": "^14.1.0",
@@ -50,6 +52,12 @@
   },
   "jest": {
     "preset": "jest-expo",
+    "moduleNameMapper": {
+      "^@/assets/(.*)$": "<rootDir>/assets/$1"
+    },
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/setup/repository-cache.ts"
+    ],
     "testTimeout": 30000
   },
   "private": true

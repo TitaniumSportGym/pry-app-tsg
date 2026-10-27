@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 
 import { getAccessErrorMessage } from '@/features/authorization/models/access-errors';
-import { getTrainerRoutines } from '@/features/trainer/api/trainer-api';
+import { trainerRepository } from '@/features/trainer/repositories/trainer-repository';
 import {
   capitalize,
   formatRoutineSchedule,
@@ -10,7 +10,7 @@ import {
 import { useAuthorizedResource } from '@/hooks/use-authorized-resource';
 
 export function useTrainerRoutinesViewModel() {
-  const routines = useAuthorizedResource(getTrainerRoutines);
+  const routines = useAuthorizedResource(trainerRepository.getRoutines);
 
   return {
     routines: (routines.data ?? []).map((routine) => ({

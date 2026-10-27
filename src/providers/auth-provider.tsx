@@ -1,5 +1,6 @@
 import { createContext, useCallback, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
 
+import { sessionEvents } from '@/core/observer/session-events';
 import {
   getCurrentUser,
   login as loginRequest,
@@ -96,6 +97,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     setUser(authenticatedUser);
     setStatus('authenticated');
+    sessionEvents.notify({ type: 'signed-in', userId: authenticatedUser.id });
 
     return role;
   }, []);
@@ -157,6 +159,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const signOut = useCallback(async () => {
     setUser(null);
     setStatus('unauthenticated');
+    sessionEvents.notify({ type: 'signed-out' });
 
     try {
       await logoutRequest();
@@ -177,6 +180,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
 /** Closes the session on the server and removes the stored token. */
 async function revokeSession() {
+  sessionEvents.notify({ type: 'signed-out' });
+
   try {
     await logoutRequest();
   } catch {

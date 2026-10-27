@@ -1,20 +1,16 @@
 import { router } from 'expo-router';
 
 import { getAccessErrorMessage } from '@/features/authorization/models/access-errors';
-import {
-  getTrainerClients,
-  getTrainerProfile,
-  getTrainerRoutines,
-} from '@/features/trainer/api/trainer-api';
 import { isProfileIncomplete } from '@/features/trainer/models/trainer-presentation';
+import { trainerRepository } from '@/features/trainer/repositories/trainer-repository';
 import { useAuth } from '@/hooks/use-auth';
-import { useAuthorizedResource } from '@/hooks/use-authorized-resource';
+import { useAuthorizedResource, type LoadOptions } from '@/hooks/use-authorized-resource';
 
-async function loadTrainerSummary() {
+async function loadTrainerSummary(options: LoadOptions) {
   const [clients, routines, profile] = await Promise.all([
-    getTrainerClients(),
-    getTrainerRoutines(),
-    getTrainerProfile(),
+    trainerRepository.getClients(options),
+    trainerRepository.getRoutines(options),
+    trainerRepository.getProfile(options),
   ]);
 
   return {

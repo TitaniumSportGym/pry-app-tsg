@@ -79,7 +79,12 @@ describe("Integración — pantalla Más", () => {
     await user.press(await screen.findByRole("button", { name: "Mi membresía" }));
     expect(router.push).toHaveBeenCalledWith("/memberships");
 
-    expect(screen.getByRole("button", { name: "Pagos y comprobantes, próximamente" })).toBeDisabled();
+    await user.press(screen.getByRole("button", { name: "Pagos y comprobantes" }));
+    expect(router.push).toHaveBeenCalledWith("/account/payments");
+
+    await user.press(screen.getByRole("button", { name: "Mis rutinas" }));
+    expect(router.push).toHaveBeenCalledWith("/account/routines");
+
     expect(screen.getByRole("button", { name: "Favoritos, próximamente" })).toBeDisabled();
   });
 

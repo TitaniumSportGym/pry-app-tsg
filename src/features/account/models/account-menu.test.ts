@@ -25,6 +25,8 @@ describe('menú de la cuenta', () => {
   it('solo habilita opciones que tienen pantalla', () => {
     expect(availableRoutes('cliente')).toEqual([
       '/memberships',
+      '/account/payments',
+      '/account/routines',
       '/account/privacy',
       '/account/terms',
     ]);

@@ -5,6 +5,8 @@ import { useState } from 'react';
 import { createMembershipCheckout } from '@/features/memberships/api/checkout-api';
 import { getCheckoutErrorMessage, getIdempotencyKey } from '@/features/memberships/models/checkout';
 import type { MembershipArea } from '@/features/memberships/models/membership-area';
+import { paymentsRepository } from '@/features/payments/repositories/payments-repository';
+import { routinesRepository } from '@/features/training/repositories/routines-repository';
 import { useAuth } from '@/hooks/use-auth';
 
 /**
@@ -35,6 +37,11 @@ export function useMembershipPurchase(area: MembershipArea) {
         const key = getIdempotencyKey(`membership:${membershipPlanId}`);
         const { checkoutUrl } = await createMembershipCheckout(membershipPlanId, key);
         await WebBrowser.openBrowserAsync(checkoutUrl);
+        // The payment may have been approved while the browser was open: the
+        // next reads go to the server and open screens (home, payments,
+        // routines) reload by themselves.
+        paymentsRepository.invalidate();
+        routinesRepository.invalidate();
       } catch (error) {
         setErrorMessage(getCheckoutErrorMessage(error));
       } finally {

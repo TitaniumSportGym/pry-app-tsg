@@ -3,7 +3,6 @@ import * as WebBrowser from 'expo-web-browser';
 import { useCallback } from 'react';
 
 import { getAccessErrorMessage } from '@/features/authorization/models/access-errors';
-import { getTrainerRoutine } from '@/features/trainer/api/trainer-api';
 import {
   capitalize,
   formatRest,
@@ -13,19 +12,23 @@ import {
   groupExercisesByDay,
   isValidResourceId,
 } from '@/features/trainer/models/trainer-presentation';
-import { useAuthorizedResource } from '@/hooks/use-authorized-resource';
+import { trainerRepository } from '@/features/trainer/repositories/trainer-repository';
+import { useAuthorizedResource, type LoadOptions } from '@/hooks/use-authorized-resource';
 import { ApiError } from '@/types/auth';
 
 const NOT_FOUND_MESSAGE = 'No encontramos esta rutina.';
 
 export function useTrainerRoutineDetailViewModel(routineId: unknown) {
-  const load = useCallback(async () => {
-    if (!isValidResourceId(routineId)) {
-      throw new ApiError(NOT_FOUND_MESSAGE, 404);
-    }
+  const load = useCallback(
+    async (options: LoadOptions) => {
+      if (!isValidResourceId(routineId)) {
+        throw new ApiError(NOT_FOUND_MESSAGE, 404);
+      }
 
-    return getTrainerRoutine(routineId);
-  }, [routineId]);
+      return trainerRepository.getRoutine(routineId, options);
+    },
+    [routineId],
+  );
 
   const resource = useAuthorizedResource(load);
   const routine = resource.data;

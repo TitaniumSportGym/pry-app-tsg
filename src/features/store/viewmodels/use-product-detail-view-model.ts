@@ -4,7 +4,6 @@ import { Share } from 'react-native';
 
 import { getAccessErrorMessage } from '@/features/authorization/models/access-errors';
 import { getQuantityInCart, MAX_UNITS_PER_PRODUCT } from '@/features/cart/models/cart';
-import { getProduct } from '@/features/store/api/products-api';
 import {
   formatProductPrice,
   getStockLabel,
@@ -12,7 +11,8 @@ import {
   parseProductId,
   toCartProduct,
 } from '@/features/store/models/product';
-import { useAuthorizedResource } from '@/hooks/use-authorized-resource';
+import { productsRepository } from '@/features/store/repositories/products-repository';
+import { useAuthorizedResource, type LoadOptions } from '@/hooks/use-authorized-resource';
 import { useCart } from '@/hooks/use-cart';
 import { useDelayedFlag } from '@/hooks/use-delayed-flag';
 import { ApiError } from '@/types/auth';
@@ -26,15 +26,18 @@ export function useProductDetailViewModel(rawProductId: unknown) {
   const cart = useCart();
   const [justAdded, setJustAdded] = useState(false);
 
-  const load = useCallback(async () => {
-    const productId = parseProductId(rawProductId);
+  const load = useCallback(
+    async (options: LoadOptions) => {
+      const productId = parseProductId(rawProductId);
 
-    if (productId === null) {
-      throw new ApiError(NOT_FOUND_MESSAGE, 404);
-    }
+      if (productId === null) {
+        throw new ApiError(NOT_FOUND_MESSAGE, 404);
+      }
 
-    return getProduct(productId);
-  }, [rawProductId]);
+      return productsRepository.getProduct(productId, options);
+    },
+    [rawProductId],
+  );
 
   const resource = useAuthorizedResource(load);
   const product = resource.data;

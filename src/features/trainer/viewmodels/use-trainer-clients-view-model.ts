@@ -1,10 +1,10 @@
 import { getAccessErrorMessage } from '@/features/authorization/models/access-errors';
-import { getTrainerClients } from '@/features/trainer/api/trainer-api';
+import { trainerRepository } from '@/features/trainer/repositories/trainer-repository';
 import { getClientDisplayName } from '@/features/trainer/models/trainer-presentation';
 import { useAuthorizedResource } from '@/hooks/use-authorized-resource';
 
 export function useTrainerClientsViewModel() {
-  const clients = useAuthorizedResource(getTrainerClients);
+  const clients = useAuthorizedResource(trainerRepository.getClients);
 
   return {
     clients: (clients.data ?? []).map((client) => ({
