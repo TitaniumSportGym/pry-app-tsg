@@ -99,7 +99,7 @@ export function CatalogView({ category, query }: CatalogViewProps) {
           viewModel.isLoading ? (
             viewModel.showSkeleton ? (
               <CatalogSkeleton />
-            ) : null
+            ) : undefined
           ) : viewModel.errorMessage ? (
             <ErrorState message={viewModel.errorMessage} onRetry={viewModel.retry} />
           ) : (

@@ -30,7 +30,7 @@ interface AppTabBarProps {
   badges?: Partial<Record<string, number>>;
 }
 
-interface AppTabButtonProps extends TabTriggerSlotProps {
+interface AppTabButtonProps extends Omit<TabTriggerSlotProps, 'ref'> {
   icon: SymbolViewProps['name'];
   label: string;
   badge?: number;
