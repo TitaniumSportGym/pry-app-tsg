@@ -2,7 +2,7 @@ import { sessionEvents } from '@/core/observer/session-events';
 import { Subject, type Listener, type Unsubscribe } from '@/core/observer/subject';
 
 export interface ReadOptions {
-  /** Skips the cached copy and asks the data source again (pull to refresh, retry). */
+  /** Ignora la copia guardada y vuelve a pedir los datos a la fuente (jalar para actualizar, reintentar). */
   force?: boolean;
 }
 
@@ -17,16 +17,16 @@ interface CacheEntry {
 type Clock = () => number;
 
 /**
- * In-memory cache shared by every repository.
- * - Fresh data is returned without a request; stale data is fetched again.
- * - Simultaneous reads of the same key share one request.
- * - Errors are never cached, so a retry always reaches the data source.
- * It is also a subject: screens observe it to reload when data is invalidated.
+ * Caché en memoria compartida por todos los repositorios.
+ * - Los datos vigentes se devuelven sin petición; los vencidos se vuelven a pedir.
+ * - Las lecturas simultáneas de la misma clave comparten una sola petición.
+ * - Los errores nunca se guardan, así que un reintento siempre llega a la fuente de datos.
+ * También es un sujeto: las pantallas la observan para recargarse cuando se invalidan sus datos.
  */
 export class RepositoryCache {
   private readonly entries = new Map<string, CacheEntry>();
   private readonly events = new Subject<CacheEvent>();
-  /** Increases on clear(); results of requests started before it are discarded. */
+  /** Aumenta con clear(); se descartan los resultados de peticiones iniciadas antes. */
   private generation = 0;
 
   constructor(private readonly now: Clock = Date.now) {}
@@ -55,7 +55,7 @@ export class RepositoryCache {
       return data;
     } catch (error) {
       const current = this.entries.get(key);
-      // Keep the previous good copy (if any); the failure itself is not cached.
+      // Se conserva la última copia buena (si la hay); el error en sí no se guarda.
       if (current?.pending === pending) {
         if ('data' in current) this.entries.set(key, { data: current.data, updatedAt: current.updatedAt });
         else this.entries.delete(key);
@@ -64,12 +64,12 @@ export class RepositoryCache {
     }
   }
 
-  /** Returns a cached value without fetching, if there is one (fresh or not). */
+  /** Devuelve el valor guardado sin hacer petición, si existe (vigente o no). */
   peek<T>(key: string): T | undefined {
     return this.entries.get(key)?.data as T | undefined;
   }
 
-  /** Drops every key that starts with `prefix` and tells the observers. */
+  /** Borra todas las claves que empiezan con `prefix` y avisa a los observadores. */
   invalidate(prefix: string) {
     for (const key of [...this.entries.keys()]) {
       if (key.startsWith(prefix)) this.entries.delete(key);
@@ -90,5 +90,5 @@ export class RepositoryCache {
 
 export const repositoryCache = new RepositoryCache();
 
-// A different user must never see the previous user's payments or routines.
+// Otro usuario nunca debe ver los pagos o rutinas del usuario anterior.
 sessionEvents.subscribe(() => repositoryCache.clear());

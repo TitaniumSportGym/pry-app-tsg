@@ -20,7 +20,7 @@ const routine: ClientRoutine = {
   exercises: [],
 };
 
-// The repository is built with a fake data source and its own cache (dependency injection).
+// El repositorio se construye con una fuente de datos falsa y su propia caché (inyección de dependencias).
 function setup() {
   const dataSource = {
     getClientRoutines: jest.fn().mockResolvedValue([routine]),

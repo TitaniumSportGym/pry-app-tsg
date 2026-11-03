@@ -2,13 +2,13 @@ export type Listener<TEvent> = (event: TEvent) => void;
 export type Unsubscribe = () => void;
 
 /**
- * Observer pattern: the subject keeps a list of observers and notifies all of
- * them when something happens, without knowing who they are.
+ * Patrón Observer: el sujeto guarda una lista de observadores y les avisa a
+ * todos cuando ocurre algo, sin saber quiénes son.
  */
 export class Subject<TEvent> {
   private readonly listeners = new Set<Listener<TEvent>>();
 
-  /** Registers an observer; call the returned function to stop listening. */
+  /** Registra un observador; llama a la función que devuelve para dejar de escuchar. */
   subscribe(listener: Listener<TEvent>): Unsubscribe {
     this.listeners.add(listener);
     return () => {
@@ -17,12 +17,12 @@ export class Subject<TEvent> {
   }
 
   notify(event: TEvent) {
-    // Copy first: an observer may unsubscribe (or subscribe others) while being notified.
+    // Se copia primero: un observador puede desuscribirse (o suscribir a otros) mientras se le notifica.
     for (const listener of [...this.listeners]) {
       try {
         listener(event);
       } catch (error) {
-        // One failing observer must not stop the rest from being notified.
+        // Si un observador falla, los demás deben seguir recibiendo el aviso.
         console.error('Observer failed while handling an event', error);
       }
     }

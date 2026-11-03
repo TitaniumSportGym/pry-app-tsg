@@ -48,3 +48,9 @@ example
 
 # jest coverage
 coverage/
+
+# documentos locales (no se suben)
+docs/ARQUITECTURA-TECNICA.md
+docs/ARQUITECTURA-TECNICA.docx
+docs/Guia-de-skeletons-Titanium.docx
+docs/PATRONES-DE-DISENO.md

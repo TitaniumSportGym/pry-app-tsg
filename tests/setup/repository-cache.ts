@@ -1,7 +1,7 @@
 import { repositoryCache } from '../../src/core/repository/repository-cache';
 
-// Repositories share one in-memory cache. Each test starts empty so data mocked
-// by one test never answers the requests of the next one.
+// Los repositorios comparten una caché en memoria. Cada prueba empieza vacía para
+// que los datos simulados de una prueba nunca respondan las peticiones de la siguiente.
 beforeEach(() => {
   repositoryCache.clear();
 });

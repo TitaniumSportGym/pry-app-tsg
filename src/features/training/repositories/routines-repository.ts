@@ -6,7 +6,7 @@ import {
 import { getClientRoutine, getClientRoutines } from '@/features/training/api/training-api';
 import type { ClientRoutine } from '@/features/training/models/client-routine';
 
-/** Trainers publish routines occasionally; access also depends on the membership. */
+/** Los entrenadores publican rutinas de vez en cuando; el acceso también depende de la membresía. */
 const ROUTINES_TTL_MS = 5 * 60_000;
 
 export const ROUTINE_KEYS = {
@@ -18,7 +18,7 @@ export const ROUTINE_KEYS = {
 export interface RoutinesRepository {
   getRoutines(options?: ReadOptions): Promise<ClientRoutine[]>;
   getRoutine(routineId: string, options?: ReadOptions): Promise<ClientRoutine>;
-  /** Call when the membership may have changed (e.g. after a purchase). */
+  /** Llamar cuando la membresía pudo haber cambiado (por ejemplo, después de una compra). */
   invalidate(): void;
 }
 
@@ -38,8 +38,8 @@ export function createRoutinesRepository(
         ttlMs: ROUTINES_TTL_MS,
       }),
     getRoutine: (routineId, options = {}) => {
-      // The list already carries every routine with its exercises: opening one
-      // from the list needs no extra request.
+      // La lista ya trae cada rutina con sus ejercicios: abrir una desde la
+      // lista no necesita otra petición.
       const fromList = options.force
         ? undefined
         : cache.peek<ClientRoutine[]>(ROUTINE_KEYS.list)?.find((item) => item.id === routineId);

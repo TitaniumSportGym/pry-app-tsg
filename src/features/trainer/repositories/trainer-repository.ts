@@ -15,7 +15,7 @@ import type {
   TrainerRoutine,
 } from '@/features/trainer/models/trainer';
 
-/** The trainer edits this data from the website; two minutes keeps the app close to it. */
+/** El entrenador edita estos datos desde la web; dos minutos mantienen la app al día con ella. */
 const TRAINER_TTL_MS = 2 * 60_000;
 
 export const TRAINER_KEYS = {
