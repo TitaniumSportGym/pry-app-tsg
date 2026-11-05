@@ -40,13 +40,15 @@ export interface TrainerDataSource {
   getTrainerProfile(): Promise<TrainerProfile>;
 }
 
+const DEFAULT_DATA_SOURCE: TrainerDataSource = {
+  getTrainerClients,
+  getTrainerRoutines,
+  getTrainerRoutine,
+  getTrainerProfile,
+};
+
 export function createTrainerRepository(
-  dataSource: TrainerDataSource = {
-    getTrainerClients,
-    getTrainerRoutines,
-    getTrainerRoutine,
-    getTrainerProfile,
-  },
+  dataSource: TrainerDataSource = DEFAULT_DATA_SOURCE,
   cache: RepositoryCache = repositoryCache,
 ): TrainerRepository {
   const read = <T>(key: string, fetcher: () => Promise<T>, options: ReadOptions = {}) =>

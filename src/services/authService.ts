@@ -68,11 +68,7 @@ export async function login(
     auth: false,
   });
 
-  if (response.twoFactorRequired === true) {
-    return response;
-  }
-
-  if (response.accessToken) {
+  if (response.twoFactorRequired !== true && response.accessToken) {
     await saveAccessToken(response.accessToken);
   }
 

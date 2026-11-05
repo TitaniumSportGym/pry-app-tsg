@@ -6,7 +6,7 @@ import {
 import { getProduct, getProducts } from '@/features/store/api/products-api';
 import type { Product } from '@/features/store/models/product';
 
-/** El catálogo público cambia poco; cinco minutos evitan volver a pedir 160 productos en cada pantalla. */
+/** The public catalog changes rarely; five minutes avoids refetching 160 products per screen. */
 const PRODUCTS_TTL_MS = 5 * 60_000;
 
 export const PRODUCT_KEYS = {
@@ -25,9 +25,11 @@ export interface ProductsDataSource {
   getProduct(productId: number): Promise<Product>;
 }
 
-/** Tienda, catálogo, inicio y detalle de producto comparten una sola copia del catálogo. */
+const DEFAULT_DATA_SOURCE: ProductsDataSource = { getProducts, getProduct };
+
+/** Store, catalog, home and product detail share one copy of the catalog. */
 export function createProductsRepository(
-  dataSource: ProductsDataSource = { getProducts, getProduct },
+  dataSource: ProductsDataSource = DEFAULT_DATA_SOURCE,
   cache: RepositoryCache = repositoryCache,
 ): ProductsRepository {
   return {

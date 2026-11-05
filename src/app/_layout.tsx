@@ -17,7 +17,9 @@ import { AuthProvider } from '@/providers/auth-provider';
 import { CartProvider } from '@/providers/cart-provider';
 import { AppFonts } from '@/theme/tokens';
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch((error: unknown) => {
+  console.warn('No se pudo mantener visible el splash nativo.', error);
+});
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
