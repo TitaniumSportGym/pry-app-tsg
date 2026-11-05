@@ -1,5 +1,7 @@
 /** Payments of the signed-in user from /api/payments/me. */
 
+import { formatMxnAmount } from '@/utils/money';
+
 export type PaymentStatus = "paid" | "pending" | "cancelled" | "refunded" | "rejected" | "unknown";
 
 export interface Payment {
@@ -90,8 +92,7 @@ export function getPaymentStatusLabel(status: PaymentStatus) {
 }
 
 export function formatPaymentAmount(amount: number) {
-  const [integer, decimals] = (Math.round(amount * 100) / 100).toFixed(2).split(".");
-  return `$${integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${decimals}`;
+  return formatMxnAmount(amount);
 }
 
 /** "12 oct 2026", independent of the device locale. */

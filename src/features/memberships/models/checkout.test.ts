@@ -1,3 +1,5 @@
+import { randomUUID } from 'expo-crypto';
+
 import { ApiError } from '@/types/auth';
 
 import {
@@ -9,6 +11,8 @@ import {
   isTrustedCheckoutUrl,
   parseCheckoutResponse,
 } from './checkout';
+
+jest.mock('expo-crypto', () => ({ randomUUID: jest.fn() }));
 
 describe('isTrustedCheckoutUrl', () => {
   it('acepta solo enlaces https de Mercado Pago', () => {
@@ -35,14 +39,36 @@ describe('isTrustedCheckoutUrl', () => {
 });
 
 describe('getIdempotencyKey', () => {
+  beforeEach(() => {
+    forgetIdempotencyKey('membership:plan-1');
+    forgetIdempotencyKey('membership:plan-2');
+    jest.mocked(randomUUID).mockReset()
+      .mockReturnValueOnce('f09a7a9b-8cb4-4119-ab5e-8c93afddf35a')
+      .mockReturnValueOnce('f09a7a9b-8cb4-4119-ab5e-8c93afddf35b')
+      .mockReturnValueOnce('f09a7a9b-8cb4-4119-ab5e-8c93afddf35c');
+  });
+
   it('reutiliza la llave para el mismo intento y la renueva al olvidarla', () => {
     const first = getIdempotencyKey('membership:plan-1');
 
+    expect(first).toBe('f09a7a9b-8cb4-4119-ab5e-8c93afddf35a');
     expect(getIdempotencyKey('membership:plan-1')).toBe(first);
+    expect(randomUUID).toHaveBeenCalledTimes(1);
     expect(getIdempotencyKey('membership:plan-2')).not.toBe(first);
 
     forgetIdempotencyKey('membership:plan-1');
     expect(getIdempotencyKey('membership:plan-1')).not.toBe(first);
+    expect(randomUUID).toHaveBeenCalledTimes(3);
+  });
+
+  it('propaga el fallo criptográfico sin crear ni guardar una llave insegura', () => {
+    jest.mocked(randomUUID).mockReset().mockImplementationOnce(() => {
+      throw new Error('Crypto unavailable');
+    }).mockReturnValueOnce('f09a7a9b-8cb4-4119-ab5e-8c93afddf35a');
+
+    expect(() => getIdempotencyKey('membership:plan-1')).toThrow('Crypto unavailable');
+    expect(getIdempotencyKey('membership:plan-1')).toBe('f09a7a9b-8cb4-4119-ab5e-8c93afddf35a');
+    expect(randomUUID).toHaveBeenCalledTimes(2);
   });
 });
 
