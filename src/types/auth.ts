@@ -1,3 +1,5 @@
+import type { ConsentAcceptance, ConsentReceipt } from '@/features/privacy/models/arco-contracts';
+
 export interface UserSession {
   id: string;
   email: string;
@@ -27,13 +29,16 @@ export interface VerifyOtpRequest {
 
 export interface RegisterRequest extends LoginCredentials {
   client: "mobile";
+  privacyConsent?: ConsentAcceptance;
 }
 
 export interface AuthMessageResponse {
   message: string;
 }
 
-export type RegisterResponse = AuthMessageResponse;
+export interface RegisterResponse extends AuthMessageResponse {
+  privacyConsent?: ConsentReceipt;
+}
 
 export type VerifyAccountOtpRequest = VerifyOtpRequest;
 export type VerifyAccountOtpResponse = AuthMessageResponse;

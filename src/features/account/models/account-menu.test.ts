@@ -24,6 +24,7 @@ describe('menú de la cuenta', () => {
 
   it('solo habilita opciones que tienen pantalla', () => {
     expect(availableRoutes('cliente')).toEqual([
+      '/account/personal-data',
       '/memberships',
       '/account/payments',
       '/account/routines',
@@ -31,6 +32,7 @@ describe('menú de la cuenta', () => {
       '/account/terms',
     ]);
     expect(availableRoutes('entrenador')).toEqual([
+      '/trainer/account/personal-data',
       '/trainer/account/memberships',
       '/trainer/clients',
       '/trainer/routines',
@@ -38,6 +40,7 @@ describe('menú de la cuenta', () => {
       '/trainer/account/terms',
     ]);
     expect(availableRoutes('administrador')).toEqual([
+      '/admin/account/personal-data',
       '/admin/users',
       '/admin/payments',
       '/admin/account/privacy',

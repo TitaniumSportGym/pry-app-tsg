@@ -16,13 +16,19 @@
         "EXPO_PUBLIC_API_URL": "https://server-titanium.onrender.com"
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "buildArtifactPaths": [
+          "android/app/build/outputs/mapping/release/**"
+        ]
       }
     },
     "production": {
       "autoIncrement": true,
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "buildArtifactPaths": [
+          "android/app/build/outputs/mapping/release/**"
+        ]
       }
     }
   },
