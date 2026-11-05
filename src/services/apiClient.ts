@@ -9,6 +9,7 @@ export interface ApiRequestOptions<TBody = unknown> {
   body?: TBody;
   auth?: boolean;
   headers?: Record<string, string>;
+  onResponse?: (metadata: { status: number; headers: Headers }) => void;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -129,7 +130,7 @@ export async function apiRequest<T>(
   path: string,
   options: ApiRequestOptions = {},
 ): Promise<T> {
-  const { method = "GET", body, auth = true, headers = {} } = options;
+  const { method = "GET", body, auth = true, headers = {}, onResponse } = options;
   const baseUrl = getApiBaseUrl();
   const isAbsoluteUrl = /^https?:\/\//i.test(path);
   const url = isAbsoluteUrl
@@ -183,5 +184,6 @@ export async function apiRequest<T>(
     throw apiError;
   }
 
+  onResponse?.({ status: response.status, headers: response.headers });
   return (responseBody ?? null) as T;
 }

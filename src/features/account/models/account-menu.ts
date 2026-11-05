@@ -29,6 +29,10 @@ const PROFILE: AccountMenuItem = {
   icon: { ios: 'person', android: 'person', web: 'person' },
 };
 
+function profileFor(role: UserRole): AccountMenuItem {
+  return { ...PROFILE, route: getLegalRoutes(role).rights };
+}
+
 const GYM_SECTION: AccountMenuSection = {
   title: 'TITANIUM SPORT GYM',
   items: [
@@ -82,7 +86,7 @@ const ROLE_SECTIONS: Record<UserRole, AccountMenuSection[]> = {
     {
       title: 'MI CUENTA',
       items: [
-        PROFILE,
+        profileFor('cliente'),
         {
           id: 'membership',
           label: 'Mi membresía',
@@ -140,7 +144,7 @@ const ROLE_SECTIONS: Record<UserRole, AccountMenuSection[]> = {
     {
       title: 'MI CUENTA',
       items: [
-        PROFILE,
+        profileFor('entrenador'),
         {
           id: 'memberships',
           label: 'Membresías del gimnasio',
@@ -175,7 +179,7 @@ const ROLE_SECTIONS: Record<UserRole, AccountMenuSection[]> = {
     getPreferencesSection('entrenador'),
   ],
   administrador: [
-    { title: 'MI CUENTA', items: [PROFILE] },
+    { title: 'MI CUENTA', items: [profileFor('administrador')] },
     {
       title: 'ADMINISTRACIÓN',
       items: [

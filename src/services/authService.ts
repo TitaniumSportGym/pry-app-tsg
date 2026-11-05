@@ -1,3 +1,5 @@
+import type { ConsentAcceptance } from '@/features/privacy/models/arco-contracts';
+
 import {
     ApiError,
     type AuthResult,
@@ -20,14 +22,21 @@ import {
 export async function registerMobile(
   email: string,
   password: string,
+  privacyConsent?: ConsentAcceptance,
 ): Promise<RegisterResponse> {
-  const body: RegisterRequest = { email, password, client: "mobile" };
+  const body: RegisterRequest = { email, password, client: "mobile", ...(privacyConsent ? { privacyConsent } : {}) };
 
-  return apiRequest<RegisterResponse>("/api/auth/register", {
+  let receivedStatus = 0;
+  const response = await apiRequest<RegisterResponse>("/api/auth/register", {
     method: "POST",
     body,
     auth: false,
+    ...(privacyConsent ? { onResponse: (metadata: { status: number }) => { receivedStatus = metadata.status; } } : {}),
   });
+  if (privacyConsent && receivedStatus !== 201) {
+    throw new ApiError("No se confirmó el registro con evidencia de consentimiento.", 502, undefined, "INVALID_ARCO_RESPONSE");
+  }
+  return response;
 }
 
 export async function verifyAccountOtp(

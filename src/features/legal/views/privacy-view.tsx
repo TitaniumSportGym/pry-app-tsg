@@ -9,8 +9,8 @@ import { LegalScreen } from '@/features/legal/views/legal-screen';
 import { AppColors, AppFonts, AppFontSizes, AppSpacing } from '@/theme/tokens';
 
 /** Screen 21 of the Figma: data cards, uses, ARCO rights and details over a pink background. */
-export function PrivacyView() {
-  const viewModel = useLegalViewModel('privacy');
+export function PrivacyView({ fromRegistration = false }: { fromRegistration?: boolean }) {
+  const viewModel = useLegalViewModel('privacy', { fromRegistration });
   const { privacy } = viewModel;
 
   return (
@@ -21,6 +21,9 @@ export function PrivacyView() {
       onBack={viewModel.goBack}
     >
       <Text style={styles.paragraph}>{privacy.intro}</Text>
+      {viewModel.canManagePrivacy ? (
+        <AppButton title="Mis datos y derechos ARCO" onPress={viewModel.openPrivacyRights} />
+      ) : null}
 
       <View style={styles.block}>
         <Text accessibilityRole="header" style={styles.subtitle}>
