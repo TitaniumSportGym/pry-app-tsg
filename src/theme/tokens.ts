@@ -24,6 +24,10 @@ export const AppColors = {
   },
   overlay: {
     whiteMuted: 'rgba(255, 255, 255, 0.38)',
+    /** Fondo de botones de icono sobre la cámara o sobre fondos oscuros. */
+    whiteSoft: 'rgba(255, 255, 255, 0.12)',
+    /** Oscurece la cámara cuando aparece una hoja inferior encima. */
+    scrim: 'rgba(16, 16, 16, 0.6)',
   },
   border: {
     default: '#C9C6C2',

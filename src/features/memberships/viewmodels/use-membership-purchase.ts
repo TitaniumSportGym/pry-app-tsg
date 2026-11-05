@@ -37,9 +37,9 @@ export function useMembershipPurchase(area: MembershipArea) {
         const key = getIdempotencyKey(`membership:${membershipPlanId}`);
         const { checkoutUrl } = await createMembershipCheckout(membershipPlanId, key);
         await WebBrowser.openBrowserAsync(checkoutUrl);
-        // The payment may have been approved while the browser was open: the
-        // next reads go to the server and open screens (home, payments,
-        // routines) reload by themselves.
+        // El pago pudo aprobarse mientras el navegador estaba abierto: las
+        // siguientes lecturas van al servidor y las pantallas abiertas (inicio,
+        // pagos, rutinas) se recargan solas.
         paymentsRepository.invalidate();
         routinesRepository.invalidate();
       } catch (error) {

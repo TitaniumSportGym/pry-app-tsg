@@ -6,14 +6,15 @@ import { shouldInvalidateSession } from '@/services/apiClient';
 import { ApiError } from '@/types/auth';
 
 export interface LoadOptions {
-  /** True on retry and pull to refresh: repositories skip their cached copy. */
+  /** True al reintentar y al jalar para actualizar: los repositorios ignoran su copia guardada. */
   force: boolean;
 }
 
 interface ResourceOptions {
   /**
-   * Repository cache keys this screen depends on (e.g. ['payments']). When any
-   * of them is invalidated the data reloads by itself (Observer).
+   * Claves de la caché de repositorios de las que depende esta pantalla (por
+   * ejemplo ['payments']). Cuando se invalida alguna, los datos se recargan
+   * solos (Observer).
    */
   reloadOn?: readonly string[];
 }
@@ -81,15 +82,15 @@ export function useAuthorizedResource<T>(
     };
   }, [load, track]);
 
-  // A stable string so callers can pass an inline array.
+  // Una cadena estable para que quien llama pueda pasar un arreglo en línea.
   const reloadKey = reloadOn?.join('|') ?? '';
 
   useEffect(() => {
     if (!reloadKey) return;
     const keys = reloadKey.split('|');
 
-    // Only invalidations trigger a reload: a full clear happens on sign-out,
-    // when there is no session left to ask the server with.
+    // Solo las invalidaciones provocan una recarga: la limpieza completa ocurre al
+    // cerrar sesión, cuando ya no hay sesión con la cual consultar al servidor.
     return repositoryCache.subscribe((event) => {
       if (event.type === 'invalidated' && matchesPrefix(keys, event.prefix)) {
         track(load({ force: false }));

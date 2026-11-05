@@ -3,8 +3,8 @@ import { Subject } from '@/core/observer/subject';
 export type SessionEvent = { type: 'signed-in'; userId: string } | { type: 'signed-out' };
 
 /**
- * Published by the auth provider whenever the signed-in user changes. Other
- * layers (such as the repository cache) react to it without the auth code
- * knowing they exist.
+ * Lo publica el proveedor de autenticación cada vez que cambia el usuario con
+ * sesión. Otras capas (como la caché de repositorios) reaccionan a él sin que
+ * el código de autenticación sepa que existen.
  */
 export const sessionEvents = new Subject<SessionEvent>();

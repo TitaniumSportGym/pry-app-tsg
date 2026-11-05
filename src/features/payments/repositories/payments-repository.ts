@@ -7,7 +7,7 @@ import { getMyPaymentHistory, getMyPayments } from '@/features/payments/api/paym
 import type { Payment } from '@/features/payments/models/payment';
 import type { PaymentHistoryEntry } from '@/features/payments/models/payment-history';
 
-/** Short: a pending payment can be approved by Mercado Pago at any moment. */
+/** Corto: Mercado Pago puede aprobar un pago pendiente en cualquier momento. */
 const PAYMENTS_TTL_MS = 60_000;
 
 export const PAYMENT_KEYS = {
@@ -17,11 +17,11 @@ export const PAYMENT_KEYS = {
 } as const;
 
 export interface PaymentsRepository {
-  /** First page of payments, newest first (home's "último pago"). */
+  /** Primera página de pagos, del más reciente al más antiguo ("último pago" del inicio). */
   getRecentPayments(options?: ReadOptions): Promise<Payment[]>;
-  /** Every payment with the name of what was paid. */
+  /** Todos los pagos con el nombre de lo que se pagó. */
   getHistory(options?: ReadOptions): Promise<PaymentHistoryEntry[]>;
-  /** Call after a purchase: the next read goes to the server and open screens reload. */
+  /** Llamar después de una compra: la siguiente lectura va al servidor y las pantallas abiertas se recargan. */
   invalidate(): void;
 }
 

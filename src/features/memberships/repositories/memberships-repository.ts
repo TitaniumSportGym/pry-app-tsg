@@ -6,7 +6,7 @@ import {
 import { getMembershipPlan, getMembershipPlans } from '@/features/memberships/api/memberships-api';
 import type { MembershipPlan } from '@/features/memberships/models/membership';
 
-/** Plans and prices are edited by the gym from time to time, not minute to minute. */
+/** El gimnasio edita planes y precios de vez en cuando, no a cada minuto. */
 const PLANS_TTL_MS = 10 * 60_000;
 
 export const MEMBERSHIP_KEYS = {
