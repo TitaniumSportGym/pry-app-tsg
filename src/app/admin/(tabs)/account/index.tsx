@@ -1,5 +1,5 @@
-import { AccountView } from '@/features/account/views/account-view';
+import { AdminMoreView } from '@/features/admin/views/admin-more-view';
 
 export default function AdminAccountScreen() {
-  return <AccountView />;
+  return <AdminMoreView />;
 }
