@@ -28,6 +28,24 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      - name: Verificar generación de Android Release con R8
+        run: node scripts/verify-android-release.cjs
+
+      - name: Conservar evidencia de configuración R8
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-config-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          path: |
+            .expo/android-release-*/verification.json
+            .expo/android-release-*/prebuild.log
+            .expo/android-release-*/android/gradle.properties
+            .expo/android-release-*/android/app/build.gradle
+            .expo/android-release-*/android/app/proguard-rules.pro
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Validar configuración de preview y origen de API
         run: node scripts/eas-preview.cjs validate
 
