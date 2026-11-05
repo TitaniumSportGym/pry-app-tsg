@@ -7,6 +7,7 @@ import { getCameraAccess, normalizeScannedCode } from '@/features/access/models/
 
 export function useAccessScannerViewModel() {
   const [permission, requestPermission, getPermission] = useCameraPermissions();
+  const [permissionError, setPermissionError] = useState<string | null>(null);
   const [torchOn, setTorchOn] = useState(false);
   const [scannedCode, setScannedCode] = useState<string | null>(null);
   // La cámara sigue reportando el mismo código varias veces por segundo; el candado deja pasar solo la primera.
@@ -17,7 +18,13 @@ export function useAccessScannerViewModel() {
   // Si el administrador activa el permiso desde Ajustes, se refleja al volver a la app.
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') getPermission();
+      if (state === 'active') {
+        getPermission()
+          .then(() => setPermissionError(null))
+          .catch(() =>
+            setPermissionError('No se pudo consultar el permiso de la cámara. Vuelve a intentarlo.'),
+          );
+      }
     });
     return () => subscription.remove();
   }, [getPermission]);
@@ -36,8 +43,16 @@ export function useAccessScannerViewModel() {
   }
 
   function requestCameraAccess() {
-    if (cameraAccess === 'blocked') Linking.openSettings();
-    else requestPermission();
+    setPermissionError(null);
+    if (cameraAccess === 'blocked') {
+      Linking.openSettings().catch(() =>
+        setPermissionError('No se pudieron abrir los ajustes. Vuelve a intentarlo.'),
+      );
+    } else {
+      requestPermission().catch(() =>
+        setPermissionError('No se pudo solicitar el permiso de la cámara. Vuelve a intentarlo.'),
+      );
+    }
   }
 
   function goBack() {
@@ -47,6 +62,7 @@ export function useAccessScannerViewModel() {
 
   return {
     cameraAccess,
+    permissionError,
     torchOn,
     scannedCode,
     toggleTorch: () => setTorchOn((value) => !value),

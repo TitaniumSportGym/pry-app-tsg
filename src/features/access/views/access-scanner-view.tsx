@@ -65,6 +65,12 @@ export function AccessScannerView() {
         ) : null}
       </View>
 
+      {viewModel.permissionError ? (
+        <Text accessibilityRole="alert" style={styles.permissionError}>
+          {viewModel.permissionError}
+        </Text>
+      ) : null}
+
       {viewModel.cameraAccess === 'askable' || viewModel.cameraAccess === 'blocked' ? (
         <CameraPermissionPanel
           blocked={viewModel.cameraAccess === 'blocked'}
@@ -256,6 +262,14 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   pressed: { opacity: 0.7 },
+  permissionError: {
+    color: AppColors.brand.primary,
+    fontFamily: AppFonts.body,
+    fontSize: AppFontSizes.caption,
+    marginHorizontal: 20,
+    marginTop: AppSpacing.three,
+    textAlign: 'center',
+  },
   middle: {
     flex: 1,
     alignItems: 'center',
