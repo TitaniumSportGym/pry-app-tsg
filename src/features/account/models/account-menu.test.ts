@@ -42,7 +42,7 @@ describe('menú de la cuenta', () => {
     expect(availableRoutes('administrador')).toEqual([
       '/admin/account/personal-data',
       '/admin/users',
-      '/admin/payments',
+      '/admin/account/payments',
       '/admin/account/privacy',
       '/admin/account/terms',
     ]);

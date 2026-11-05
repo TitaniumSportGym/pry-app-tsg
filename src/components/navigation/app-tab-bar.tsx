@@ -24,10 +24,18 @@ export interface AppTab {
   icon: SymbolViewProps['name'];
 }
 
+/** Botón central elevado que lanza una acción (no es una pestaña y nunca queda activo). */
+export interface TabBarCenterAction {
+  label: string;
+  icon: SymbolViewProps['name'];
+  onPress: () => void;
+}
+
 interface AppTabBarProps {
   tabs: readonly AppTab[];
   /** Counters shown over a tab icon, keyed by tab name (e.g. { cart: 3 }). */
   badges?: Partial<Record<string, number>>;
+  centerAction?: TabBarCenterAction;
 }
 
 interface AppTabButtonProps extends Omit<TabTriggerSlotProps, 'ref'> {
@@ -36,20 +44,48 @@ interface AppTabButtonProps extends Omit<TabTriggerSlotProps, 'ref'> {
   badge?: number;
 }
 
-export function AppTabBar({ tabs, badges }: AppTabBarProps) {
+export function AppTabBar({ tabs, badges, centerAction }: AppTabBarProps) {
+  const centerIndex = Math.ceil(tabs.length / 2);
+  const triggers = tabs.map((tab) => (
+    <TabTrigger key={tab.name} name={tab.name} href={tab.href} resetOnFocus asChild>
+      <AppTabButton badge={badges?.[tab.name]} icon={tab.icon} label={tab.label} />
+    </TabTrigger>
+  ));
+
   return (
     <Tabs>
       <TabSlot style={styles.slot} />
       <TabList asChild>
         <TabBarContainer>
-          {tabs.map((tab) => (
-            <TabTrigger key={tab.name} name={tab.name} href={tab.href} resetOnFocus asChild>
-              <AppTabButton badge={badges?.[tab.name]} icon={tab.icon} label={tab.label} />
-            </TabTrigger>
-          ))}
+          {centerAction ? (
+            <>
+              {triggers.slice(0, centerIndex)}
+              <CenterActionButton action={centerAction} />
+              {triggers.slice(centerIndex)}
+            </>
+          ) : (
+            triggers
+          )}
         </TabBarContainer>
       </TabList>
     </Tabs>
+  );
+}
+
+function CenterActionButton({ action }: { action: TabBarCenterAction }) {
+  return (
+    <Pressable
+      accessibilityLabel={action.label}
+      accessibilityRole="button"
+      style={({ pressed }) => [styles.centerSlot, pressed && styles.pressed]}
+      onPress={action.onPress}>
+      <View style={styles.centerButton}>
+        <SymbolView name={action.icon} size={26} tintColor={AppColors.neutral.white} />
+      </View>
+      <Text numberOfLines={1} style={styles.centerLabel}>
+        {action.label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -149,5 +185,32 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  centerSlot: {
+    width: 70,
+    height: TAB_BAR_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 2,
+    paddingBottom: 9,
+  },
+  centerButton: {
+    position: 'absolute',
+    top: -22,
+    width: 58,
+    height: 58,
+    borderWidth: 5,
+    borderColor: AppColors.surface.default,
+    borderRadius: 29,
+    backgroundColor: AppColors.brand.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 6px 16px rgba(240, 61, 51, 0.45)',
+  },
+  centerLabel: {
+    color: AppColors.neutral.text,
+    fontFamily: AppFonts.label,
+    fontSize: 11,
+    lineHeight: 14,
   },
 });

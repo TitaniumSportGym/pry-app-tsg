@@ -1,5 +1,5 @@
-import { AdminUsersView } from '@/features/admin/views/admin-users-view';
+import { AdminMembersView } from '@/features/admin/views/admin-members-view';
 
-export default function AdminUsersScreen() {
-  return <AdminUsersView />;
+export default function AdminMembersScreen() {
+  return <AdminMembersView />;
 }
