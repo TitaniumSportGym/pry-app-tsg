@@ -154,6 +154,7 @@ describe('ARCO conectado a contratos reales con HTTP simulado', () => {
     expect(signOut).not.toHaveBeenCalled();
   });
   it('flujo OTP envía contraseña y código fresco; 202 no es prueba de cancelación', async () => {
+    const logs = [jest.spyOn(console, 'log'), jest.spyOn(console, 'warn'), jest.spyOn(console, 'error')];
     reauthMethod = 'otp'; await ready(); await verifyPassword();
     expect(await screen.findByLabelText('Código de verificación ARCO')).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Solicitar cancelación' })).toBeNull();
@@ -178,6 +179,8 @@ describe('ARCO conectado a contratos reales con HTTP simulado', () => {
     expect(screen.queryByText('private-password')).toBeNull(); expect(screen.queryByText('P'.repeat(43))).toBeNull();
     await user.press(screen.getByRole('button', { name: 'Consultar solicitud' }));
     expect(calls('/api/user/account-cancellation-requests/' + cancellationRequest().requestId, 'GET')).toHaveLength(1);
+    // Full HTTP-simulated path carries password/JWT/OTP/proof, but none is logged.
+    for (const log of logs) expect(log).not.toHaveBeenCalled();
   });
   it('reintento tras respuesta perdida usa idéntica clave y cuerpo, incluso si el servidor recibió la solicitud', async () => {
     await ready(); await verifyPassword();
@@ -234,5 +237,49 @@ describe('ARCO conectado a contratos reales con HTTP simulado', () => {
     await user.press(screen.getByRole('button', { name: 'Crear cuenta' }));
     expect(router.push).not.toHaveBeenCalled();
     expect(await screen.findByRole('alert')).toHaveTextContent(/respuesta válida/);
+  });
+
+  it.each([
+    [403, 'REAUTHENTICATION_FAILED', /No se pudo verificar tu identidad/],
+    [422, 'INVALID_INPUT', /Revisa los datos/],
+  ] as const)('HTTP %s durante reautenticación conserva sesión y borra contraseña sin registrarla', async (status, code, message) => {
+    const logs = [jest.spyOn(console, 'log'), jest.spyOn(console, 'warn'), jest.spyOn(console, 'error')];
+    await ready();
+    faults.set('POST /api/auth/reauthenticate', { status, code });
+    await verifyPassword();
+    expect(await screen.findByRole('alert')).toHaveTextContent(message);
+    expect(screen.getByLabelText('Contraseña actual')).toHaveDisplayValue('');
+    expect(screen.queryByRole('button', { name: 'Solicitar cancelación' })).toBeNull();
+    expect(signOut).not.toHaveBeenCalled();
+    for (const log of logs) {
+      expect(log).not.toHaveBeenCalled();
+      expect(JSON.stringify(log.mock.calls)).not.toMatch(/private-password|private-session-jwt|012345/);
+    }
+  });
+
+  it('409 de aviso descarta aceptación previa y vuelve a consultar sin inventar un recibo', async () => {
+    await ready();
+    faults.set('POST /api/user/privacy-consents', { status: 409, code: 'NOTICE_VERSION_CHANGED' });
+    const user = userEvent.setup();
+    await user.press(screen.getByRole('checkbox'));
+    await user.press(screen.getByRole('button', { name: 'Registrar aceptación' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/aviso cambió/);
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
+    expect(calls('/api/privacy/notice', 'GET')).toHaveLength(2);
+    expect(screen.queryByText('Comprobante: ' + consentReceipt().receiptId)).toBeNull();
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it('422 de rectificación conserva el borrador, sin afirmar éxito ni reflejar datos privados del error', async () => {
+    await ready();
+    faults.set('PATCH /api/user/profile', { status: 422, code: 'INVALID_INPUT' });
+    const user = userEvent.setup();
+    await user.press(screen.getByRole('button', { name: 'Editar nombre y teléfono' }));
+    await fireEvent.changeText(screen.getByLabelText('Nombre completo'), 'Nombre de prueba');
+    await user.press(screen.getByRole('button', { name: 'Guardar cambios' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Revisa los datos/);
+    expect(screen.getByLabelText('Nombre completo')).toHaveDisplayValue('Nombre de prueba');
+    expect(screen.queryByText(/servidor confirmó la actualización/)).toBeNull();
+    expect(signOut).not.toHaveBeenCalled();
   });
 });
