@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "pry-app-tsg",
+    "name": "Titanium Sport Gym",
     "slug": "pry-app-tsg",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -38,6 +38,7 @@
         "expo-build-properties",
         {
           "android": {
+            "targetSdkVersion": 36,
             "enableMinifyInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true
           }
@@ -60,7 +61,9 @@
           "cameraPermission": "Titanium Sport Gym usa la cámara para escanear el código QR de acceso de los socios.",
           "recordAudioAndroid": false
         }
-      ]
+      ],
+      "expo-image",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -11,8 +11,14 @@ function effective(name: string): Profile {
   return { ...parent, ...profile, env: { ...parent.env, ...profile.env }, android: { ...parent.android, ...profile.android } };
 }
 
-it.each(['development', 'preview', 'production'])('keeps ARCO disabled in the standard %s profile', name => {
+it.each(['development', 'preview'])('keeps ARCO disabled in the standard %s profile', name => {
   expect(effective(name).env?.EXPO_PUBLIC_ARCO_BACKEND_ENABLED).toBe('false');
+});
+it('pins the production API and enables the reviewed ARCO client with an incremented AAB version', () => {
+  expect(eas.build.production.env).toEqual({ EXPO_PUBLIC_API_URL:'https://server-titanium.onrender.com', EXPO_PUBLIC_ARCO_BACKEND_ENABLED:'true' });
+  expect(eas.cli.appVersionSource).toBe('remote');
+  expect(eas.build.production.autoIncrement).toBe(true);
+  expect(app.expo.name).toBe('Titanium Sport Gym');
 });
 
 it.each(['arco-debug', 'arco-release'])('isolates activation to the internal %s profile', name => {
@@ -34,7 +40,7 @@ it('keeps arco-release self-contained and preserves its R8 reports', () => {
   expect(profiles['arco-release'].extends).toBeUndefined();
   expect(eas.build['arco-release'].android.buildArtifactPaths).toContain('android/app/build/outputs/mapping/release/**');
   const buildProperties = app.expo.plugins.find(plugin => Array.isArray(plugin) && plugin[0] === 'expo-build-properties');
-  expect(buildProperties).toEqual(['expo-build-properties', { android: { enableMinifyInReleaseBuilds: true, enableShrinkResourcesInReleaseBuilds: true } }]);
+  expect(buildProperties).toEqual(['expo-build-properties', { android: { targetSdkVersion:36, enableMinifyInReleaseBuilds: true, enableShrinkResourcesInReleaseBuilds: true } }]);
 });
 
 it.each([

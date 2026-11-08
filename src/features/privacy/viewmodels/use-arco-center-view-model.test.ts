@@ -15,6 +15,7 @@ jest.mock('@/features/privacy/api/arco-api', () => ({
   acceptPrivacyNotice: jest.fn(), getArcoProfile: jest.fn(), getCancellationRequest: jest.fn(), getPrivacyConsents: jest.fn(),
   getPrivacyNotice: jest.fn(), getPrivacyPreferences: jest.fn(), patchPrivacyPreference: jest.fn(), rectifyPersonalData: jest.fn(),
   startCancellationReauthentication: jest.fn(), submitCancellation: jest.fn(), verifyCancellationReauthentication: jest.fn(),
+  listCancellationRequests: jest.fn(),
 }));
 let auth: AuthContextValue;
 const snapshot = () => ({ ...arcoProfile(), etag: '"' + arcoProfile().version + '"' });
@@ -31,6 +32,7 @@ beforeEach(() => {
   jest.mocked(api.startCancellationReauthentication).mockResolvedValue({ kind: 'proof', proof: reauthenticationProof() });
   jest.mocked(api.submitCancellation).mockResolvedValue(cancellationRequest());
   jest.mocked(api.getCancellationRequest).mockResolvedValue(cancellationRequest());
+  jest.mocked(api.listCancellationRequests).mockResolvedValue([]);
 });
 afterEach(() => jest.useRealTimers());
 
@@ -44,6 +46,19 @@ async function verify(result: Awaited<ReturnType<typeof ready>>['result']) {
 }
 
 describe('ViewModel ARCO', () => {
+  it('recupera el folio al volver a entrar y consulta el estado actualizado sin almacenar credenciales nuevas', async () => {
+    const saved = { ...cancellationRequest(), status: 'under_review' as const, version: 2 };
+    jest.mocked(api.listCancellationRequests).mockResolvedValue([saved]);
+    const first = await ready();
+    expect(first.result.current.requestId).toBe(saved.requestId);
+    await first.unmount();
+    const next = await ready();
+    expect(next.result.current.cancellation?.status).toBe('under_review');
+    jest.mocked(api.getCancellationRequest).mockResolvedValue({ ...saved, status:'awaiting_policy', version:3 });
+    await act(()=>next.result.current.lookupCancellation());
+    expect(next.result.current.cancellation?.status).toBe('awaiting_policy');
+    expect(next.result.current.password).toBe(''); expect(next.result.current.proofExpiresAt).toBeNull();
+  });
   it('carga estados reales y permite rectificación de cliente con ETag', async () => {
     const { result } = await ready();
     expect(result.current.privacyAccepted).toBe(false);

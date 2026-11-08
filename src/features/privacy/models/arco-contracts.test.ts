@@ -1,6 +1,6 @@
 import {
   arcoProfile, cancellationRequest, consentReceipt, privacyNotice, privacyPreferences,
-  reauthenticationChallenge, reauthenticationProof, ARCO_USER_ID, ARCO_OTHER_ID,
+  reauthenticationChallenge, reauthenticationProof, ARCO_USER_ID, ARCO_OTHER_ID, ARCO_DATE,
 } from '../../../../tests/fixtures/arco';
 
 import {
@@ -76,5 +76,18 @@ describe('contratos ARCO del commit remoto 1e5f1bf', () => {
     expect(arcoErrorMessage(new ApiError('secret-password', 403, undefined, 'REAUTHENTICATION_REQUIRED'))).toMatch(/verificación/);
     expect(arcoErrorMessage(new Error('secret-password'))).not.toContain('secret-password');
     expect(arcoErrorMessage(new ApiError('secret-password', 503))).not.toContain('secret-password');
+  });
+  it('distingue estados administrativos y exige resolución y conservación aprobada para una baja', () => {
+    for (const status of ['under_review','awaiting_policy']) {
+      expect(parseCancellation({ ...cancellationRequest(),status,version:2 }).status).toBe(status);
+    }
+    expect(parseCancellation({ ...cancellationRequest(),status:'rejected',resolvedAt:ARCO_DATE }).status).toBe('rejected');
+    const completed={...cancellationRequest(),status:'completed',resolvedAt:ARCO_DATE,retentionSummary:[
+      {category:'payment_records',policyStatus:'approved',reason:'Synthetic fixture; not a legal basis',retainUntil:'2027-01-01T00:00:00Z'},
+    ]};
+    expect(parseCancellation(completed).status).toBe('completed');
+    expect(()=>parseCancellation({...completed,resolvedAt:null})).toThrow(ApiError);
+    expect(()=>parseCancellation({...completed,retentionSummary:cancellationRequest().retentionSummary})).toThrow(ApiError);
+    expect(()=>parseCancellation({...cancellationRequest(),version:0})).toThrow(ApiError);
   });
 });

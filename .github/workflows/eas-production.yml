@@ -1,0 +1,120 @@
+name: EAS production Android AAB
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: titanium-eas-production-android
+  cancel-in-progress: false
+
+jobs:
+  calidad:
+    name: Validar aplicación antes de solicitar AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Instalar dependencias fijadas
+        run: npm ci
+      - name: Validar perfil production y proyecto EAS
+        run: node scripts/eas-production.cjs validate
+      - name: Compatibilidad de Expo SDK y dependencias
+        run: |
+          npx expo install --check
+          npx expo-doctor
+      - name: Comprobar Android, HTTPS, permisos y R8 sin compilar
+        run: node scripts/verify-android-release.cjs
+      - name: Generar tipos de rutas
+        run: npx expo customize tsconfig.json
+      - name: ESLint
+        run: npm run lint
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Pruebas unitarias
+        run: npm run test:unit -- --ci --runInBand
+      - name: Pruebas de integración
+        run: npm run test:integration -- --ci --runInBand
+      - name: Pruebas de aceptación
+        run: npm run test:acceptance -- --ci --runInBand
+      - name: Verificar backend HTTPS y ARCO desplegado
+        run: node scripts/eas-production.cjs backend
+
+  build:
+    name: Compilar AAB y consultar estado final en Expo
+    needs: calidad
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      build_url: ${{ steps.resultado.outputs.build_url }}
+      remote_status: ${{ steps.resultado.outputs.remote_status }}
+      aab_verified: ${{ steps.resultado.outputs.aab_verified }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node scripts/eas-production.cjs validate
+      - name: Revalidar backend y esquema antes de compilar
+        run: node scripts/eas-production.cjs backend
+      - name: Comprobar acceso mediante GitHub Secret
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo '::error::Configura EXPO_TOKEN con acceso al proyecto EAS existente.'
+            exit 1
+          fi
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          packager: npm
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Generar AAB firmado con credenciales existentes
+        id: compilar
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          mkdir -p coverage/eas-production
+          npx eas-cli@latest build --platform android --profile production --non-interactive --freeze-credentials --wait --json \
+            > coverage/eas-production/build.json 2> coverage/eas-production/build.log
+      - name: Consultar estado real, verificar AAB y publicar enlace seguro
+        id: resultado
+        if: ${{ !cancelled() && steps.compilar.outcome != 'skipped' }}
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: node scripts/eas-production.cjs result coverage/eas-production/build.json coverage/eas-production/build.log
+
+  resumen:
+    name: Resumen de la preparación y compilación
+    if: always()
+    needs: [calidad, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Registrar resultado sin secretos ni enlaces firmados
+        env:
+          QUALITY: ${{ needs.calidad.result }}
+          BUILD: ${{ needs.build.result }}
+          BUILD_URL: ${{ needs.build.outputs.build_url }}
+          REMOTE_STATUS: ${{ needs.build.outputs.remote_status }}
+          AAB_VERIFIED: ${{ needs.build.outputs.aab_verified }}
+        run: |
+          {
+            echo '## Titanium Sport Gym · Android AAB'
+            echo "Calidad: $QUALITY"
+            echo "Trabajo de compilación: $BUILD"
+            echo "Estado remoto: ${REMOTE_STATUS:-no consultado}"
+            echo "Formato AAB y commit verificados: ${AAB_VERIFIED:-false}"
+            if [ -n "$BUILD_URL" ]; then echo "[Abrir resultado en Expo]($BUILD_URL)"; fi
+            echo 'No se realizó envío ni publicación en Google Play.'
+          } >> "$GITHUB_STEP_SUMMARY"

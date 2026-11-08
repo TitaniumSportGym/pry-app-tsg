@@ -7,14 +7,15 @@ import { getLegalRoutes } from '@/features/legal/models/legal-area';
 import {
   acceptPrivacyNotice, getArcoProfile, getCancellationRequest, getPrivacyConsents,
   getPrivacyNotice, getPrivacyPreferences, patchPrivacyPreference, rectifyPersonalData,
-  startCancellationReauthentication, submitCancellation, verifyCancellationReauthentication,
+  startCancellationReauthentication, submitCancellation, verifyCancellationReauthentication, listCancellationRequests,
 } from '@/features/privacy/api/arco-api';
 import {
-  arcoErrorMessage, CANCELLATION_CONFIRMATION,
+  arcoErrorMessage, CANCELLATION_CONFIRMATION, cancellationStatusLabels,
   type ArcoProfile, type CancellationRequest, type ConsentReceipt, type OptionalPurpose,
   type PrivacyPreferences, type ReauthenticationChallenge, type ReauthenticationProof,
 } from '@/features/privacy/models/arco-contracts';
 import { personalDataRows, validateRectification, type RectificationDraft, type RectificationErrors } from '@/features/privacy/models/personal-data';
+import { ACCOUNT_DELETION_URL } from '@/features/privacy/models/account-deletion';
 import { useAuth } from '@/hooks/use-auth';
 import { useAuthorizedResource } from '@/hooks/use-authorized-resource';
 import { shouldInvalidateSession } from '@/services/apiClient';
@@ -48,7 +49,7 @@ export function useArcoCenterViewModel() {
   const [confirmation, setConfirmation] = useState('');
   const [pendingRetry, setPendingRetry] = useState(false);
   const [requestId, setRequestId] = useState('');
-  const [cancellation, setCancellation] = useState<CancellationRequest | null>(null);
+  const [cancellationOverride, setCancellation] = useState<CancellationRequest | null>(null);
   const [now, setNow] = useState(Date.now);
 
   useEffect(() => {
@@ -69,6 +70,9 @@ export function useArcoCenterViewModel() {
   const noticeResource = useAuthorizedResource(getPrivacyNotice);
   const receiptsResource = useAuthorizedResource(getPrivacyConsents);
   const preferencesResource = useAuthorizedResource(getPrivacyPreferences);
+  const cancellationsResource = useAuthorizedResource(listCancellationRequests);
+  const cancellation = cancellationOverride ?? cancellationsResource.data?.[0] ?? null;
+  const currentRequestId = requestId || cancellation?.requestId || '';
   const profile = profileOverride ?? profileResource.data;
   const preferences = preferencesOverride ?? preferencesResource.data;
   const receipts = receiptsOverride ?? receiptsResource.data ?? [];
@@ -106,7 +110,10 @@ export function useArcoCenterViewModel() {
     receipts, receiptsLoading: receiptsResource.isLoading,
     receiptsError: receiptsResource.error ? arcoErrorMessage(receiptsResource.error) : null,
     busy, error, message, draft, fieldErrors, privacyAccepted, password, code, challenge,
-    proofExpiresAt, confirmation, pendingRetry, requestId, cancellation,
+    proofExpiresAt, confirmation, pendingRetry, requestId: currentRequestId, cancellation,
+    cancellationLoading: cancellationsResource.isLoading,
+    cancellationError: cancellationsResource.error ? arcoErrorMessage(cancellationsResource.error) : null,
+    retryCancellations: cancellationsResource.retry,
     proofReady: Boolean(proofExpiresAt && Date.parse(proofExpiresAt) > now),
     challengeExpired: Boolean(challenge && Date.parse(challenge.expiresAt) <= now),
     waitingForTotp: Boolean(challenge?.notBefore && Date.parse(challenge.notBefore) > now),
@@ -119,9 +126,10 @@ export function useArcoCenterViewModel() {
       if (lock.current || draft || challenge || proof.current || attempt.current) return;
       setProfileOverride(null); setPreferencesOverride(null); setReceiptsOverride(null);
       profileResource.refresh(); noticeResource.refresh(); receiptsResource.refresh(); preferencesResource.refresh();
+      setCancellation(null); cancellationsResource.refresh();
       setPrivacyAccepted(false); setMessage(null);
     },
-    isRefreshing: profileResource.isRefreshing || noticeResource.isRefreshing || preferencesResource.isRefreshing || receiptsResource.isRefreshing,
+    isRefreshing: profileResource.isRefreshing || noticeResource.isRefreshing || preferencesResource.isRefreshing || receiptsResource.isRefreshing || cancellationsResource.isRefreshing,
     beginEdit() {
       if (!profile || profileResource.error || lock.current) return;
       setDraft({ fullName: profile.fullName ?? '', phone: profile.phone ?? '' });
@@ -229,7 +237,7 @@ export function useArcoCenterViewModel() {
           const result = await submitCancellation(pending.confirmation, pending.token, pending.idempotencyKey);
           if (!current()) return;
           clearVerification(); setCancellation(result); setRequestId(result.requestId);
-          setMessage('Solicitud recibida y pendiente de revisión. Tu cuenta sigue activa.');
+          setMessage(result.status === 'pending_review' ? 'Solicitud recibida y pendiente de revisión. Tu cuenta sigue activa.' : `Estado confirmado: ${cancellationStatusLabels[result.status]}.`);
         } catch (failure) {
           if (current()) {
             const uncertain = !(failure instanceof ApiError) || failure.status >= 500;
@@ -242,11 +250,24 @@ export function useArcoCenterViewModel() {
     },
     lookupCancellation() {
       return perform('lookup', async (current) => {
-        const result = await getCancellationRequest(requestId.trim());
+        const result = await getCancellationRequest(currentRequestId.trim());
         if (current()) { setCancellation(result); setRequestId(result.requestId); }
       });
     },
     resetVerification() { if (!lock.current) clearVerification(); },
+    reauthenticateGoogle() {
+      return perform('reauthenticate', async (current) => {
+        setPassword(''); setCode('');
+        const result = await startCancellationReauthentication('', 'google-email');
+        if (!current()) return;
+        if (result.kind === 'challenge') { setChallenge(result.challenge); setNow(Date.now()); }
+        else { proof.current = result.proof; setProofExpiresAt(result.proof.expiresAt); setNow(Date.now()); }
+      });
+    },
+    async openAccountDeletionPage() {
+      try { await WebBrowser.openBrowserAsync(ACCOUNT_DELETION_URL); }
+      catch { if (mounted.current) setError('No fue posible abrir la página de eliminación. Intenta nuevamente.'); }
+    },
     async openApprovedNotice() {
       if (!noticeResource.data || noticeResource.error) return;
       try { await WebBrowser.openBrowserAsync(noticeResource.data.documentUrl); }

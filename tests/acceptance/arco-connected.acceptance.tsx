@@ -14,6 +14,7 @@ jest.mock('../../src/features/privacy/api/arco-api', () => ({
   acceptPrivacyNotice: jest.fn(), getArcoProfile: jest.fn(), getCancellationRequest: jest.fn(), getPrivacyConsents: jest.fn(),
   getPrivacyNotice: jest.fn(), getPrivacyPreferences: jest.fn(), patchPrivacyPreference: jest.fn(), rectifyPersonalData: jest.fn(),
   startCancellationReauthentication: jest.fn(), submitCancellation: jest.fn(), verifyCancellationReauthentication: jest.fn(),
+  listCancellationRequests: jest.fn(),
 }));
 
 beforeEach(() => {
@@ -23,6 +24,7 @@ beforeEach(() => {
   jest.mocked(api.getPrivacyPreferences).mockResolvedValue(privacyPreferences());
   jest.mocked(api.acceptPrivacyNotice).mockResolvedValue(consentReceipt());
   jest.mocked(api.submitCancellation).mockResolvedValue(cancellationRequest());
+  jest.mocked(api.listCancellationRequests).mockResolvedValue([]);
 });
 async function openCenter() {
   await renderAcceptance(<ClientPersonalDataScreen />, 'cliente');

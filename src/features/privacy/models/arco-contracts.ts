@@ -30,7 +30,7 @@ export interface PersonalSnapshot {
   version: string;
   etag: string;
 }
-export type ArcoProfile = UserProfileResponse & PersonalSnapshot;
+export type ArcoProfile = UserProfileResponse & PersonalSnapshot & { reauthenticationMethods?: ('password' | 'google-email')[] };
 export const PURPOSES = ['promotional_communications', 'satisfaction_surveys'] as const;
 export type OptionalPurpose = (typeof PURPOSES)[number];
 export interface PrivacyPreference {
@@ -51,15 +51,17 @@ export type ReauthenticationResult =
   | { kind: 'challenge'; challenge: ReauthenticationChallenge };
 export interface RetentionCategory {
   category: string;
-  policyStatus: 'pending_approval';
+  policyStatus: 'pending_approval' | 'approved';
   reason: string | null;
   retainUntil: string | null;
 }
 export interface CancellationRequest {
   requestId: string;
-  status: 'pending_review';
+  status: 'pending_review' | 'under_review' | 'awaiting_policy' | 'rejected' | 'completed';
   createdAt: string;
-  resolvedAt: null;
+  resolvedAt: string | null;
+  version?: number;
+  resolutionCode?: string | null;
   membershipImpact: { requiresReview: true };
   retentionSummary: RetentionCategory[];
 }
@@ -123,7 +125,10 @@ export function parseArcoProfile(value: unknown, ownerId: string, role: UserRole
   for (const field of ['provider', 'authMethod', 'loginMethod'] as const) {
     if (typeof p[field] === 'string') identity[field] = p[field];
   }
-  return { ...identity, ...parsePersonalSnapshot(p, ownerId, etag) };
+  const methods = p.reauthenticationMethods;
+  if (methods !== undefined && (!Array.isArray(methods) || methods.some((method) => !['password', 'google-email'].includes(String(method))))) return invalidContract();
+  return { ...identity, ...parsePersonalSnapshot(p, ownerId, etag),
+    ...(methods === undefined ? {} : { reauthenticationMethods: methods as ('password' | 'google-email')[] }) };
 }
 export function parsePreferences(value: unknown): PrivacyPreferences {
   const p = record(value);
@@ -156,20 +161,34 @@ export function parseChallenge(value: unknown): ReauthenticationChallenge {
 }
 export function parseCancellation(value: unknown, requestId?: string): CancellationRequest {
   const p = record(value);
-  if (!isUuid(p.requestId) || (requestId !== undefined && p.requestId !== requestId) || p.status !== 'pending_review' ||
-      !date(p.createdAt) || p.resolvedAt !== null || record(p.membershipImpact).requiresReview !== true ||
+  const status = p.status as CancellationRequest['status'];
+  const resolved = status === 'completed' || status === 'rejected';
+  if (!isUuid(p.requestId) || (requestId !== undefined && p.requestId !== requestId) || !['pending_review','under_review','awaiting_policy','rejected','completed'].includes(status) ||
+      !date(p.createdAt) || (resolved ? !date(p.resolvedAt) || Date.parse(p.resolvedAt) < Date.parse(p.createdAt) : p.resolvedAt !== null) || record(p.membershipImpact).requiresReview !== true ||
+      (p.version !== undefined && (!Number.isSafeInteger(p.version) || Number(p.version) < 1)) ||
+      (p.resolutionCode !== undefined && p.resolutionCode !== null && (typeof p.resolutionCode !== 'string' || !/^[A-Z][A-Z0-9_]{2,79}$/.test(p.resolutionCode))) ||
       !Array.isArray(p.retentionSummary) || !p.retentionSummary.length) return invalidContract();
+  const seen = new Set<string>();
   const retentionSummary = p.retentionSummary.map((value): RetentionCategory => {
     const item = record(value);
-    if (!text(item.category) || item.policyStatus !== 'pending_approval' ||
+    if (!text(item.category) || seen.has(item.category) || !['pending_approval','approved'].includes(String(item.policyStatus)) ||
+        (status === 'completed' && item.policyStatus !== 'approved') ||
+        (item.policyStatus === 'approved' && (!text(item.reason) || !date(item.retainUntil))) ||
         (item.reason !== null && typeof item.reason !== 'string') ||
         (item.retainUntil !== null && !date(item.retainUntil))) return invalidContract();
-    return { category: item.category, policyStatus: 'pending_approval',
+    seen.add(item.category);
+    return { category: item.category, policyStatus: item.policyStatus as RetentionCategory['policyStatus'],
       reason: item.reason as string | null, retainUntil: item.retainUntil as string | null };
   });
-  return { requestId: p.requestId, status: 'pending_review', createdAt: p.createdAt,
-    resolvedAt: null, membershipImpact: { requiresReview: true }, retentionSummary };
+  return { requestId: p.requestId, status, createdAt: p.createdAt,
+    resolvedAt: p.resolvedAt as string | null, membershipImpact: { requiresReview: true }, retentionSummary,
+    ...(p.version === undefined ? {} : { version: Number(p.version) }),
+    ...(p.resolutionCode === undefined ? {} : { resolutionCode: p.resolutionCode as string | null }) };
 }
+export const cancellationStatusLabels: Record<CancellationRequest['status'], string> = {
+  pending_review: 'Pendiente de revisión', under_review: 'En revisión', awaiting_policy: 'Pendiente de política aprobada',
+  rejected: 'Solicitud rechazada', completed: 'Eliminación completada con conservación informada',
+};
 export function arcoErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return 'No fue posible completar la operación. Revisa tu conexión y vuelve a intentar.';
   const code = error.code ?? (error.data && typeof error.data === 'object' && 'code' in error.data ? error.data.code : undefined);
@@ -180,7 +199,7 @@ export function arcoErrorMessage(error: unknown): string {
     CONSENT_REQUIRED: 'Debes aceptar expresamente la versión vigente del aviso.',
     PROFILE_VERSION_CHANGED: 'El perfil cambió en otro dispositivo. Se recargaron los datos; revisa y vuelve a editar.',
     PREFERENCES_VERSION_CHANGED: 'Las preferencias cambiaron en otro dispositivo. Consulta el estado actualizado.',
-    REAUTHENTICATION_METHOD_UNAVAILABLE: 'La verificación disponible no permite este trámite. Utiliza el canal ARCO del aviso; Google sin contraseña local aún no admite cancelación automatizada.',
+    REAUTHENTICATION_METHOD_UNAVAILABLE: 'La verificación disponible no permite este trámite. Para una cuenta Google sin contraseña, inicia sesión con Google y usa la verificación adicional o la página web.',
     REAUTHENTICATION_FAILED: 'No se pudo verificar tu identidad. Comprueba tu contraseña y los requisitos de la cuenta.',
     REAUTHENTICATION_REQUIRED: 'La verificación no es válida o venció. Verifica tu identidad nuevamente.',
     CANCELLATION_ALREADY_PENDING: 'Ya existe una solicitud pendiente para tu cuenta. Consulta tu folio o el canal ARCO.',
