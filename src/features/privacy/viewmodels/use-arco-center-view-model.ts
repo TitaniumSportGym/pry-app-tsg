@@ -87,7 +87,7 @@ export function useArcoCenterViewModel() {
     catch (failure) {
       if (!current()) return;
       setError(arcoErrorMessage(failure));
-      if (failure instanceof ApiError && shouldInvalidateSession(failure.status, failure.data)) {
+      if (failure instanceof ApiError && !failure.sessionInvalidationHandled && shouldInvalidateSession(failure.status, failure.data)) {
         clearVerification(); await signOut();
       }
     } finally {

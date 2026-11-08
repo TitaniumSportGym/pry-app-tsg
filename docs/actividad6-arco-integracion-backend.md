@@ -1,5 +1,9 @@
 # Integración móvil ARCO con el backend
 
+> Contratos de la integración original. Para configuración y pruebas actuales,
+> consultar [ARCO Release con una sola cuenta](arco-release-cuenta-unica.md).
+> Los estados de despliegue que siguen describen la revisión original.
+
 ## Fuente verificada
 
 Se consultó GitHub directamente, sin modificar el checkout backend:
@@ -41,13 +45,10 @@ que tenga esos endpoints y su aviso aprobados. Toda la app, incluido el login,
 debe apuntar al mismo backend de pruebas mediante `EXPO_PUBLIC_API_URL`.
 No se creó un segundo cliente HTTP ni se mandan JWT de producción a una URL nueva.
 
-Ejemplo orientativo para un entorno local de desarrollo; **no se escribió en
-la configuración actual**:
-
-```dotenv
-EXPO_PUBLIC_API_URL=https://backend-staging.example.test
-EXPO_PUBLIC_ARCO_BACKEND_ENABLED=true
-```
+La configuración autorizada vigente se define exclusivamente en los perfiles
+ARCO de `eas.json`: origen Render sin sufijo `/api`, flag `true`. Consultar la
+guía actual antes de compilar; no copiar variables a producción ni inventar
+direcciones de staging.
 
 Reiniciar Expo/Metro después de cambiar variables públicas. El flag es un control
 de despliegue del cliente; la autenticación y autorización siguen correspondiendo

@@ -12,6 +12,13 @@
     },
     "android": {
       "package": "com.titaniumsportgym.app",
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.VIBRATE"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -26,6 +33,7 @@
     },
     "plugins": [
       "expo-router",
+      "./plugins/with-network-security.cjs",
       [
         "expo-build-properties",
         {

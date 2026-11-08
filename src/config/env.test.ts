@@ -22,9 +22,6 @@ describe('getApiBaseUrl', () => {
     [' https://api.example.com/// ', 'https://api.example.com'],
     ['https://api.example.com/api/v1/', 'https://api.example.com/api/v1'],
     ['https://api.example.com', 'https://api.example.com'],
-    ['/', ''],
-    ['///', ''],
-    ['not-a-url///', 'not-a-url'],
     ['https://api.example.com/a//b', 'https://api.example.com/a//b'],
   ])('preserva la normalización existente para %j', (input, expected) => {
     expect(loadBaseUrl(input)).toBe(expected);
@@ -38,6 +35,10 @@ describe('getApiBaseUrl', () => {
     const base = `https://api.example.com/${'a'.repeat(100_000)}`;
     expect(loadBaseUrl(base + '/'.repeat(100_000))).toBe(base);
     expect(loadBaseUrl(base)).toBe(base);
-    expect(loadBaseUrl('/'.repeat(100_000))).toBe('');
+    expect(() => loadBaseUrl('/'.repeat(100_000))).toThrow('Invalid API URL');
+  });
+
+  it.each(['/', '///', 'not-a-url', 'https://user:secret@api.example.test', 'https://api.example.test?token=x'])('rejects an unsafe base %s', value => {
+    expect(() => loadBaseUrl(value)).toThrow();
   });
 });

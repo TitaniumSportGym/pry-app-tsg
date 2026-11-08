@@ -7,13 +7,18 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "environment": "development",
+      "env": {
+        "EXPO_PUBLIC_ARCO_BACKEND_ENABLED": "false"
+      }
     },
     "preview": {
       "distribution": "internal",
       "environment": "preview",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://server-titanium.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://server-titanium.onrender.com",
+        "EXPO_PUBLIC_ARCO_BACKEND_ENABLED": "false"
       },
       "android": {
         "buildType": "apk",
@@ -24,8 +29,35 @@
     },
     "production": {
       "autoIncrement": true,
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_ARCO_BACKEND_ENABLED": "false"
+      },
       "android": {
         "buildType": "app-bundle",
+        "buildArtifactPaths": [
+          "android/app/build/outputs/mapping/release/**"
+        ]
+      }
+    },
+    "arco-debug": {
+      "extends": "development",
+      "environment": "development",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://server-titanium.onrender.com",
+        "EXPO_PUBLIC_ARCO_BACKEND_ENABLED": "true"
+      }
+    },
+    "arco-release": {
+      "distribution": "internal",
+      "developmentClient": false,
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://server-titanium.onrender.com",
+        "EXPO_PUBLIC_ARCO_BACKEND_ENABLED": "true"
+      },
+      "android": {
+        "buildType": "apk",
         "buildArtifactPaths": [
           "android/app/build/outputs/mapping/release/**"
         ]

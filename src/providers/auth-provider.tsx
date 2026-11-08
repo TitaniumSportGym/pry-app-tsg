@@ -1,4 +1,4 @@
-import { createContext, useCallback, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
+import { createContext, useCallback, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react';
 
 import { sessionEvents } from '@/core/observer/session-events';
 import {
@@ -41,15 +41,24 @@ export const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
+  const generation = useRef(0);
 
   useEffect(() => {
     let isMounted = true;
+    const initialGeneration = generation.current;
+    const unsubscribe = sessionEvents.subscribe((event) => {
+      if (event.type !== 'invalidated') return;
+      generation.current += 1;
+      setUser(null);
+      setStatus('unauthenticated');
+    });
+    const isCurrent = () => isMounted && initialGeneration === generation.current;
 
     async function initializeSession() {
       try {
         const result = await restoreSession();
 
-        if (!isMounted) {
+        if (!isCurrent()) {
           return;
         }
 
@@ -57,7 +66,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           if (!parseUserRole(result.user.rol)) {
             await revokeSession();
 
-            if (isMounted) {
+            if (isCurrent()) {
               setUser(null);
               setStatus('unauthenticated');
             }
@@ -72,7 +81,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setUser(null);
         setStatus('unauthenticated');
       } catch {
-        if (isMounted) {
+        if (isCurrent()) {
           setUser(null);
           setStatus('unauthenticated');
         }
@@ -83,6 +92,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     return () => {
       isMounted = false;
+      unsubscribe();
     };
   }, []);
 
@@ -96,6 +106,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     setUser(authenticatedUser);
+    generation.current += 1;
     setStatus('authenticated');
     sessionEvents.notify({ type: 'signed-in', userId: authenticatedUser.id });
 
@@ -157,6 +168,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [acceptUser]);
 
   const signOut = useCallback(async () => {
+    generation.current += 1;
     setUser(null);
     setStatus('unauthenticated');
     sessionEvents.notify({ type: 'signed-out' });

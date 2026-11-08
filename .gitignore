@@ -50,6 +50,7 @@ example
 coverage/
 
 # documentos locales (no se suben)
+/aviso-publicado.pdf
 docs/ARQUITECTURA-TECNICA.md
 docs/ARQUITECTURA-TECNICA.docx
 docs/Guia-de-skeletons-Titanium.docx

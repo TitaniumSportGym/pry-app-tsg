@@ -57,7 +57,7 @@ export function useAuthorizedResource<T>(
             setError(loadError);
 
             if (
-              loadError instanceof ApiError &&
+              loadError instanceof ApiError && !loadError.sessionInvalidationHandled &&
               shouldInvalidateSession(loadError.status, loadError.data)
             ) {
               await signOut();

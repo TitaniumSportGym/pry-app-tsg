@@ -69,7 +69,7 @@ export function usePrivacyCenterViewModel() {
     } catch (error) {
       if (!mounted.current) return;
       setSaveError(getAccessErrorMessage(error, 'La edición de estos datos no está disponible.'));
-      if (error instanceof ApiError && shouldInvalidateSession(error.status, error.data)) await signOut();
+      if (error instanceof ApiError && !error.sessionInvalidationHandled && shouldInvalidateSession(error.status, error.data)) await signOut();
     } finally {
       saveLock.current = false;
       if (mounted.current) setIsSaving(false);

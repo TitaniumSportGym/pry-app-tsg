@@ -21,9 +21,9 @@ export class Subject<TEvent> {
     for (const listener of [...this.listeners]) {
       try {
         listener(event);
-      } catch (error) {
+      } catch {
         // Si un observador falla, los demás deben seguir recibiendo el aviso.
-        console.error('Observer failed while handling an event', error);
+        console.error('Observer failed while handling an event');
       }
     }
   }

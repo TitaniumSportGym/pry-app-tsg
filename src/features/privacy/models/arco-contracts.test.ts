@@ -10,6 +10,16 @@ import {
 import { ApiError } from '@/types/auth';
 
 describe('contratos ARCO del commit remoto 1e5f1bf', () => {
+  it('acepta el contrato público publicado sin convertir el registro opcional en aceptación implícita', () => {
+    const notice = parseNotice({
+      noticeId: 'privacy-notice', version: '2026-11-08-v1',
+      contentSha256: '7ae0e648561f1ba64aa4f3e09a8f271d644cc6dce4927abfd5c683d1a863c7ea',
+      documentUrl: 'https://titaniumsportgym.vercel.app/avisos/aviso-privacidad-titanium-sport-gym.pdf',
+      requiredForRegistration: false,
+    });
+    expect(notice.requiredForRegistration).toBe(false);
+    expect(consentFor(notice)).toEqual({ noticeId: 'privacy-notice', version: '2026-11-08-v1', accepted: true });
+  });
   it('aceptación explícita omite hash, fecha, identidad y fines opcionales del cuerpo cliente', () => {
     expect(consentFor(privacyNotice())).toEqual({ noticeId: 'privacy-notice', version: 'test-approved-v1', accepted: true });
     expect(parseConsents({ consents: [] })).toEqual([]);
