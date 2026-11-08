@@ -1,5 +1,12 @@
 # ARCO: activación de pruebas y aislamiento
 
+> Plan anterior de staging y múltiples cuentas, conservado como alternativa
+> futura. **No es el procedimiento de la campaña actual.** La instrucción vigente
+> usa una sola cuenta nueva en Render / Neon Primary, con cancelación al final y
+> confirmación manual: [guía y matriz vigentes](arco-release-cuenta-unica.md).
+> Las condiciones de crear staging/cuentas adicionales que siguen no aplican a
+> esa campaña. No se ejecutó la infraestructura descrita aquí.
+
 Continuación en `feature/actividad6-seguridad-api`. El usuario confirmó que las
 siete tablas ARCO existen en Neon. En esta tarea no se accedió a Neon ni se ejecutó
 DDL. Se verificaron por HTTP el aviso publicado, su PDF/hash y tres rechazos 401
@@ -13,16 +20,13 @@ para cancelación; no se ejecutaron login, escrituras o cancelaciones reales.
 | `development` | `false` explícito | Cliente de desarrollo habitual. |
 | `preview` | `false` explícito | Render existente, APK interna habitual. |
 | `production` | `false` explícito | Entorno EAS production; AAB conservado. |
-| `arco-debug` | `true` | Hereda development; cliente Debug interno. API: `https://arco-staging.example.invalid`. |
-| `arco-release` | `true` | Hereda preview; APK Release interna. Sobrescribe Render con el mismo marcador staging. |
+| `arco-debug` | `true` | Hereda development; cliente Debug interno. API: `https://server-titanium.onrender.com`. |
+| `arco-release` | `true` | Perfil independiente; APK Release interna. API: `https://server-titanium.onrender.com`. |
 
-`.invalid` es un marcador deliberadamente no operativo. Los perfiles ARCO no
-heredan accidentalmente el host Render actual. **No generar estos builds para
-pruebas conectadas hasta tener un staging autorizado y reemplazar el marcador**
-en ambos perfiles y en las aserciones de entorno correspondientes. Los perfiles
-habituales conservan ARCO desactivado. No se modifica `.env` ni variables remotas
-de EAS/Render. Las pruebas de configuración comprueban la herencia, los flags y
-la distribución interna.
+Se retiraron los marcadores no operativos por indicación del usuario. Los
+perfiles ARCO usan Render; esto **no aísla Neon Primary**. Los perfiles habituales
+conservan ARCO desactivado. No se modifica `.env` ni variables remotas de
+EAS/Render. Las pruebas comprueban origen real, flags, R8 y distribución interna.
 
 `EXPO_PUBLIC_*` se incorpora al bundle y no es un almacén de secretos. Solo URL y
 flag pertenecen a esas variables; nunca contraseñas, JWT, OTP o URL de PostgreSQL.
@@ -66,7 +70,7 @@ ejecutadas**. No se crearon ramas de Neon, servicios Render, roles ni credencial
    que cambios de datos de laboratorio no aparecen en producción y que las
    cuentas reales no se han copiado. Registrar IDs del servicio y rama, SHA
    desplegado, fecha y aprobador; nunca publicar las cadenas de conexión.
-7. Reemplazar el marcador de los dos perfiles ARCO por el origen HTTPS del servicio
+7. Si se adopta esta alternativa futura, cambiar ambos perfiles ARCO al origen HTTPS del servicio
    aislado y actualizar la prueba de configuración con ese origen aprobado.
    Conservar `production.env.EXPO_PUBLIC_ARCO_BACKEND_ENABLED=false`.
 
@@ -154,7 +158,7 @@ aislada. Todas las celdas físicas están **PENDIENTES**: ADB no detectó teléf
 Comandos preparados (no ejecutados como builds remotos):
 
 ```powershell
-# Solo después de reemplazar el marcador por el staging autorizado:
+# Para el procedimiento vigente de una cuenta, seguir la guía enlazada arriba:
 npx.cmd eas-cli@latest build --platform android --profile arco-debug --non-interactive --freeze-credentials
 npx.cmd eas-cli@latest build --platform android --profile arco-release --non-interactive --freeze-credentials
 adb devices -l
@@ -162,10 +166,10 @@ adb -s SERIAL reverse tcp:8081 tcp:8081
 ```
 
 Para Metro, usar variables temporales en una terminal exclusiva, nunca cambiar
-la configuración de producción. Sustituir el marcador por el origen aprobado:
+la configuración de producción. El origen vigente autorizado es Render:
 
 ```powershell
-$env:EXPO_PUBLIC_API_URL='https://arco-staging.example.invalid'
+$env:EXPO_PUBLIC_API_URL='https://server-titanium.onrender.com'
 $env:EXPO_PUBLIC_ARCO_BACKEND_ENABLED='true'
 npx.cmd expo start --dev-client --localhost --clear
 ```

@@ -1,5 +1,10 @@
 # Continuación ARCO — resultados reales y pendientes
 
+> Informe histórico de la preparación anterior (commit `131d318`). Sus números
+> corresponden a esa ejecución, no a la campaña actual. La configuración y el
+> alcance vigentes están en [Release con una cuenta](arco-release-cuenta-unica.md):
+> Render / Neon Primary, sin staging nuevo, y confirmación manual antes de cancelar.
+
 Rama `feature/actividad6-seguridad-api`. Esta verificación actualiza el estado
 del aviso público descrito como pendiente en auditorías anteriores. No se
 modificaron backend, cuentas existentes, `.env`, secretos ni infraestructura;
@@ -35,9 +40,8 @@ La disponibilidad del aviso no demuestra por sí sola los recorridos privados.
 
 - `production`, `preview` y `development` fijan el flag ARCO en `false`.
 - Solo `arco-debug` y `arco-release` fijan `true`, con distribución interna.
-- Ambos apuntan a `https://arco-staging.example.invalid`, marcador sin servicio
-  operativo que sustituye expresamente el Render heredado. No están listos para
-  pruebas conectadas hasta configurar el staging aprobado.
+- En esa preparación ambos apuntaban a un marcador sin servicio operativo.
+  Se retiró posteriormente: el destino vigente es Render, según la guía actual.
 - No se cambió la bandera del `.env` actual, que permanece desactivada, ni las
   variables remotas de EAS o el binario de producción.
 - Se añadieron pruebas de herencia de perfiles, origen separado, APK Release,

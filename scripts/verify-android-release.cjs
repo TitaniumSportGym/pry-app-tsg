@@ -16,7 +16,7 @@ function verifyAndroidRelease() {
   const plugin = app.expo.plugins.find((entry) => Array.isArray(entry) && entry[0] === 'expo-build-properties');
   assert.equal(plugin?.[1]?.android?.enableMinifyInReleaseBuilds, true);
   assert.equal(plugin?.[1]?.android?.enableShrinkResourcesInReleaseBuilds, true);
-  for (const [profile, buildType] of [['preview', 'apk'], ['production', 'app-bundle']]) {
+  for (const [profile, buildType] of [['preview', 'apk'], ['production', 'app-bundle'], ['arco-release', 'apk']]) {
     const build = eas.build[profile];
     assert.equal(build.android.buildType, buildType);
     assert.notEqual(build.developmentClient, true, `${profile} debe usar Release.`);
@@ -24,6 +24,12 @@ function verifyAndroidRelease() {
     assert.equal(build.android.gradleCommand, undefined, 'Revisar cualquier override de Gradle.');
     assert.ok(build.android.buildArtifactPaths.includes('android/app/build/outputs/mapping/release/**'));
   }
+  const arco = eas.build['arco-release'];
+  assert.equal(arco.extends, undefined);
+  assert.equal(arco.distribution, 'internal');
+  assert.equal(arco.env.EXPO_PUBLIC_API_URL, 'https://server-titanium.onrender.com');
+  assert.equal(arco.env.EXPO_PUBLIC_ARCO_BACKEND_ENABLED, 'true');
+  assert.notEqual(arco.environment, 'production');
 
   const stagingRoot = path.join(projectRoot, '.expo');
   fs.mkdirSync(stagingRoot, { recursive: true });
@@ -110,6 +116,7 @@ function verifyAndroidRelease() {
     appProguardRules: 'android/app/proguard-rules.pro',
     gradleBuildExecuted: false,
     easBuildExecuted: false,
+    arcoRelease: { apiOrigin: arco.env.EXPO_PUBLIC_API_URL, enabled: true, buildType: 'apk', distribution: arco.distribution },
   };
   fs.writeFileSync(path.join(snapshot, 'verification.json'), `${JSON.stringify(evidence, null, 2)}\n`);
   console.log(JSON.stringify(evidence, null, 2));
