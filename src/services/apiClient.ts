@@ -1,6 +1,7 @@
 import { getApiBaseUrl } from "../config/env";
+import { resolveApiRequestUrl } from '../config/api-url-policy';
 import { ApiError } from "../types/auth";
-import { getAccessToken, removeAccessToken } from "./sessionService";
+import { getAccessToken, invalidateAccessToken } from "./sessionService";
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -8,6 +9,8 @@ export interface ApiRequestOptions<TBody = unknown> {
   method?: HttpMethod;
   body?: TBody;
   auth?: boolean;
+  /** Bind session-ending operations to the credential captured when they began. */
+  expectedAccessToken?: string;
   headers?: Record<string, string>;
   onResponse?: (metadata: { status: number; headers: Headers }) => void;
 }
@@ -132,22 +135,35 @@ export async function apiRequest<T>(
 ): Promise<T> {
   const { method = "GET", body, auth = true, headers = {}, onResponse } = options;
   const baseUrl = getApiBaseUrl();
-  const isAbsoluteUrl = /^https?:\/\//i.test(path);
-  const url = isAbsoluteUrl
-    ? path
-    : `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+  const url = resolveApiRequestUrl(baseUrl, path, __DEV__);
 
   const requestHeaders = new Headers(headers);
+  // Callers cannot smuggle a credential into a public request.
+  requestHeaders.delete('Authorization');
+  let token: string | null = null;
+
+  async function invalidate(error: ApiError) {
+    error.sessionInvalidationHandled = true;
+    try { await invalidateAccessToken(token); } catch {
+      // Preserve the HTTP failure. The invalidator closes UI/cache in finally.
+    }
+  }
 
   if (body !== undefined && body !== null && !isFormData(body)) {
     requestHeaders.set("Content-Type", "application/json");
   }
 
   if (auth) {
-    const token = await getAccessToken();
+    token = await getAccessToken();
 
     if (!token) {
-      throw new ApiError("Authentication required.", 401, { code: "NO_TOKEN" });
+      const error = new ApiError("Authentication required.", 401, { code: "NO_TOKEN" });
+      await invalidate(error);
+      throw error;
+    }
+
+    if (options.expectedAccessToken !== undefined && token !== options.expectedAccessToken) {
+      throw new ApiError('The session changed before this request.', 409, undefined, 'SESSION_CHANGED');
     }
 
     requestHeaders.set("Authorization", `Bearer ${token}`);
@@ -164,7 +180,12 @@ export async function apiRequest<T>(
     method,
     headers: requestHeaders,
     body: requestBody,
+    redirect: 'error',
   });
+
+  // Some native fetch implementations do not enforce redirect: 'error'. This
+  // rejects an unexpected final origin, but cannot undo a followed redirect.
+  if (response.url) resolveApiRequestUrl(baseUrl, response.url, __DEV__);
 
   const responseBody = await parseResponseBody(response);
 
@@ -178,7 +199,7 @@ export async function apiRequest<T>(
     );
 
     if (auth && shouldInvalidateSession(response.status, responseBody)) {
-      await removeAccessToken();
+      await invalidate(apiError);
     }
 
     throw apiError;

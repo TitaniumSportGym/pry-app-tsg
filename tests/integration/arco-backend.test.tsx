@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { PrivacyCenterView } from '@/features/privacy/views/privacy-center-view';
 import { RegistrationFormView } from '@/features/registration/views/registration-form-view';
 import { AuthContext, type AuthContextValue } from '@/providers/auth-provider';
-import { getAccessToken, removeAccessToken } from '@/services/sessionService';
+import { getAccessToken, invalidateAccessToken, removeAccessToken } from '@/services/sessionService';
 import type { UserRole } from '@/features/authorization/models/user-role';
 import {
   arcoProfile, cancellationRequest, consentReceipt, privacyNotice, privacyPreferences, reauthenticationChallenge,
@@ -17,7 +17,7 @@ jest.mock('expo-web-browser', () => ({ openBrowserAsync: jest.fn() }));
 jest.mock('react-native-safe-area-context', () => jest.requireActual('react-native-safe-area-context/jest/mock').default);
 jest.mock('@/features/privacy/models/arco-config', () => ({ isArcoBackendEnabled: () => true }));
 jest.mock('@/config/env', () => ({ getApiBaseUrl: () => 'https://arco.example.test' }));
-jest.mock('@/services/sessionService', () => ({ getAccessToken: jest.fn(), removeAccessToken: jest.fn(), saveAccessToken: jest.fn() }));
+jest.mock('@/services/sessionService', () => ({ getAccessToken: jest.fn(), invalidateAccessToken: jest.fn(), removeAccessToken: jest.fn(), saveAccessToken: jest.fn() }));
 jest.mock('@/features/authentication/data/google-auth-gateway', () => ({ openGoogleAuthSession: jest.fn() }));
 
 let fetchMock: jest.SpiedFunction<typeof fetch>;
@@ -49,6 +49,11 @@ beforeEach(() => {
   signOut.mockReset().mockResolvedValue(undefined);
   jest.mocked(getAccessToken).mockReset().mockResolvedValue('private-session-jwt');
   jest.mocked(removeAccessToken).mockReset().mockResolvedValue(undefined);
+  // This suite supplies a fixed AuthContext. Forward its mocked session boundary;
+  // session-security.test.tsx covers the real provider/invalidation/secure storage.
+  jest.mocked(invalidateAccessToken).mockReset().mockImplementation(async () => {
+    await removeAccessToken(); await signOut(); return true;
+  });
   fetchMock = jest.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
     const path = String(url).replace('https://arco.example.test', '');
     const method = init?.method ?? 'GET', fault = faults.get(method + ' ' + path);

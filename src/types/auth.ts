@@ -63,6 +63,8 @@ export interface AuthResult {
 }
 
 export class ApiError extends Error {
+  /** The API client already handled expiry, including stale responses and storage failures. */
+  public sessionInvalidationHandled = false;
   public readonly status: number;
   public readonly data?: unknown;
   public readonly code?: string;

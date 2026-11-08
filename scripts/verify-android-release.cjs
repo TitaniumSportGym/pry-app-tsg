@@ -28,7 +28,7 @@ function verifyAndroidRelease() {
   const stagingRoot = path.join(projectRoot, '.expo');
   fs.mkdirSync(stagingRoot, { recursive: true });
   const snapshot = fs.mkdtempSync(path.join(stagingRoot, 'android-release-'));
-  for (const file of ['app.json', 'package.json', 'assets']) {
+  for (const file of ['app.json', 'package.json', 'assets', 'plugins']) {
     fs.cpSync(path.join(projectRoot, file), path.join(snapshot, file), { recursive: true });
   }
   // Prebuild only needs the Router directory, not a second copy of the app or its tests.
@@ -74,6 +74,21 @@ function verifyAndroidRelease() {
   assert.match(gradle, /release\s*\{[\s\S]*?findProperty\('android\.enableShrinkResourcesInReleaseBuilds'\)[\s\S]*?shrinkResources enableShrinkResources\.toBoolean\(\)/);
   assert.match(gradle, /proguardFiles getDefaultProguardFile\("proguard-android-optimize\.txt"\), "proguard-rules\.pro"/);
   assert.doesNotMatch(proguard, /^\s*-dont(?:obfuscate|shrink|optimize)\b/m);
+  const manifest = fs.readFileSync(path.join(nativeRoot, 'app', 'src', 'main', 'AndroidManifest.xml'), 'utf8');
+  assert.match(manifest, /android:usesCleartextTraffic="false"/);
+  assert.match(manifest, /android:networkSecurityConfig="@xml\/titanium_network_security"/);
+  const policy = (variant) => fs.readFileSync(path.join(nativeRoot, 'app', 'src', variant, 'res', 'xml', 'titanium_network_security.xml'), 'utf8');
+  for (const variant of ['main', 'debug']) {
+    assert.match(policy(variant), /base-config cleartextTrafficPermitted="false"/);
+    assert.match(policy(variant), /certificates src="system"/);
+    assert.doesNotMatch(policy(variant), /src="user"|debug-overrides|pin-set/);
+  }
+  assert.doesNotMatch(policy('main'), /cleartextTrafficPermitted="true"/);
+  assert.deepEqual([...policy('debug').matchAll(/<domain>(.*?)<\/domain>/g)].map(match => match[1]), ['localhost', '127.0.0.1', '10.0.2.2']);
+  const declaredPermissions = [...manifest.matchAll(/<uses-permission\b[^>]*>/g)]
+    .map(match => match[0]).filter(entry => !/tools:node="remove"/.test(entry))
+    .map(entry => entry.match(/android:name="([^"]+)"/)[1]).sort();
+  assert.deepEqual(declaredPermissions, ['android.permission.CAMERA', 'android.permission.INTERNET']);
 
   const evidence = {
     verifiedAt: new Date().toISOString(),
@@ -86,6 +101,11 @@ function verifyAndroidRelease() {
     snapshot: path.relative(projectRoot, snapshot),
     minifyEnabled: true,
     shrinkResources: true,
+    releaseCleartextBlocked: true,
+    systemCertificateAuthoritiesOnly: true,
+    certificatePinning: false,
+    prebuildPermissions: declaredPermissions,
+    mergedBinaryPermissionsVerified: false,
     proguardPreset: 'proguard-android-optimize.txt',
     appProguardRules: 'android/app/proguard-rules.pro',
     gradleBuildExecuted: false,

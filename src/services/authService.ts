@@ -15,6 +15,7 @@ import {
 import { apiRequest, shouldInvalidateSession } from "./apiClient";
 import {
     getAccessToken,
+    invalidateAccessToken,
     removeAccessToken,
     saveAccessToken,
 } from "./sessionService";
@@ -105,7 +106,7 @@ export async function logout(): Promise<void> {
   const token = await getAccessToken();
 
   if (!token) {
-    await removeAccessToken();
+    await invalidateAccessToken(null);
     return;
   }
 
@@ -113,11 +114,12 @@ export async function logout(): Promise<void> {
     await apiRequest("/api/auth/logout", {
       method: "POST",
       auth: true,
+      expectedAccessToken: token,
     });
   } catch {
     // Ignore server-side auth failures; local session should still be cleared.
   } finally {
-    await removeAccessToken();
+    await invalidateAccessToken(token);
   }
 }
 
@@ -141,7 +143,7 @@ export async function restoreSession(): Promise<AuthResult> {
   } catch (error) {
     if (error instanceof ApiError) {
       if (shouldInvalidateSession(error.status, error.data)) {
-        await removeAccessToken();
+        if (!error.sessionInvalidationHandled) await removeAccessToken();
         return { authenticated: false };
       }
 

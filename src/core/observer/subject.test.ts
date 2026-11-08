@@ -33,12 +33,14 @@ describe('Subject (Observer)', () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     subject.subscribe(() => {
-      throw new Error('falla');
+      throw new Error('sensitive-jwt-and-otp');
     });
     subject.subscribe(healthy);
     subject.notify();
 
     expect(healthy).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith('Observer failed while handling an event');
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain('sensitive-jwt-and-otp');
     consoleError.mockRestore();
   });
 

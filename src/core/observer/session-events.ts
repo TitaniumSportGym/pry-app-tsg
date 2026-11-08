@@ -1,10 +1,9 @@
 import { Subject } from '@/core/observer/subject';
 
-export type SessionEvent = { type: 'signed-in'; userId: string } | { type: 'signed-out' };
+export type SessionEvent = { type: 'signed-in'; userId: string } | { type: 'signed-out' } | { type: 'invalidated' };
 
 /**
- * Lo publica el proveedor de autenticación cada vez que cambia el usuario con
- * sesión. Otras capas (como la caché de repositorios) reaccionan a él sin que
- * el código de autenticación sepa que existen.
+ * El proveedor publica los cambios de cuenta; el almacén publica invalidaciones
+ * de credenciales. La UI y la caché reaccionan sin acoplar el cliente HTTP a React.
  */
 export const sessionEvents = new Subject<SessionEvent>();

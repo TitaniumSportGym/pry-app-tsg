@@ -1,9 +1,11 @@
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
+import { sessionEvents } from '../../src/core/observer/session-events';
 
 import {
   getAccessToken,
   hasStoredSession,
+  invalidateAccessToken,
   removeAccessToken,
   saveAccessToken,
 } from "../../src/services/sessionService";
@@ -108,4 +110,86 @@ describe("sessionService — [S1][TASK-API-02]", () => {
     expect(secureStoreMock.getItemAsync).not.toHaveBeenCalled();
     expect(secureStoreMock.deleteItemAsync).not.toHaveBeenCalled();
   });
+});
+
+describe.each(['android', 'ios', 'web'] as const)('atomic session invalidation on %s', platform => {
+  const listener = jest.fn();
+  let unsubscribe: () => void;
+  beforeEach(async () => {
+    jest.resetAllMocks();
+    jest.replaceProperty(Platform, 'OS', platform);
+    let stored: string | null = null;
+    secureStoreMock.setItemAsync.mockImplementation(async (_key, value) => { stored = value; });
+    secureStoreMock.getItemAsync.mockImplementation(async () => stored);
+    secureStoreMock.deleteItemAsync.mockImplementation(async () => { stored = null; });
+    await saveAccessToken('rejected-synthetic-token');
+    unsubscribe = sessionEvents.subscribe(listener);
+  });
+  afterEach(() => { unsubscribe(); jest.restoreAllMocks(); });
+
+  it('clears once and notifies once for simultaneous 401s', async () => {
+    expect(await Promise.all([
+      invalidateAccessToken('rejected-synthetic-token'), invalidateAccessToken('rejected-synthetic-token'),
+      invalidateAccessToken('rejected-synthetic-token'),
+    ])).toEqual([true, false, false]);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith({ type: 'invalidated' });
+    expect(JSON.stringify(listener.mock.calls)).not.toContain('rejected-synthetic-token');
+    expect(secureStoreMock.deleteItemAsync).toHaveBeenCalledTimes(platform === 'web' ? 0 : 1);
+    expect(await getAccessToken()).toBeNull();
+  });
+
+  it('ignores a late rejection of the previous login', async () => {
+    await saveAccessToken('new-synthetic-token');
+    expect(await invalidateAccessToken('rejected-synthetic-token')).toBe(false);
+    expect(await getAccessToken()).toBe('new-synthetic-token');
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('serializes cleanup before a newer save instead of deleting the new login', async () => {
+    const cleanup = invalidateAccessToken('rejected-synthetic-token');
+    const login = saveAccessToken('new-synthetic-token');
+    await Promise.all([cleanup, login]);
+    expect(await getAccessToken()).toBe('new-synthetic-token');
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('deduplicates missing-token invalidation too', async () => {
+    await removeAccessToken();
+    expect(await Promise.all([invalidateAccessToken(null), invalidateAccessToken(null)])).toEqual([true, false]);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+});
+
+it('closes UI and quarantines a rejected credential even when native deletion fails, then recovers on login', async () => {
+  jest.replaceProperty(Platform, 'OS', 'android');
+  let stored: string | null = null;
+  secureStoreMock.setItemAsync.mockImplementation(async (_key, value) => { stored = value; });
+  secureStoreMock.getItemAsync.mockImplementation(async () => stored);
+  secureStoreMock.deleteItemAsync.mockRejectedValueOnce(new Error('Native deletion failed'));
+  const listener = jest.fn();
+  const unsubscribe = sessionEvents.subscribe(listener);
+  try {
+    await saveAccessToken('rejected-token');
+    await expect(invalidateAccessToken('rejected-token')).rejects.toThrow('Native deletion failed');
+    expect(listener).toHaveBeenCalledWith({ type: 'invalidated' });
+    expect(await getAccessToken()).toBeNull();
+    await saveAccessToken('new-token');
+    expect(await getAccessToken()).toBe('new-token');
+  } finally { unsubscribe(); jest.restoreAllMocks(); }
+});
+
+it('fails closed when secure storage cannot compare a rejected credential', async () => {
+  jest.replaceProperty(Platform, 'OS', 'android');
+  secureStoreMock.setItemAsync.mockResolvedValue(undefined);
+  secureStoreMock.getItemAsync.mockResolvedValue('read-failure-token');
+  await saveAccessToken('read-failure-token');
+  secureStoreMock.getItemAsync.mockRejectedValueOnce(new Error('Storage read unavailable'));
+  const listener = jest.fn();
+  const unsubscribe = sessionEvents.subscribe(listener);
+  try {
+    await expect(invalidateAccessToken('read-failure-token')).rejects.toThrow('Storage read unavailable');
+    expect(listener).toHaveBeenCalledWith({ type: 'invalidated' });
+    expect(await getAccessToken()).toBeNull();
+  } finally { unsubscribe(); jest.restoreAllMocks(); }
 });

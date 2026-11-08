@@ -8,7 +8,7 @@ import TrainerPersonalDataScreen from '@/app/trainer/account/personal-data';
 import { AccountView } from '@/features/account/views/account-view';
 import type { UserRole } from '@/features/authorization/models/user-role';
 import { AuthContext, type AuthContextValue } from '@/providers/auth-provider';
-import { getAccessToken, removeAccessToken } from '@/services/sessionService';
+import { getAccessToken, invalidateAccessToken, removeAccessToken } from '@/services/sessionService';
 import type { UserProfileResponse } from '@/types/auth';
 
 import { trainerProfile } from '../fixtures/privacy';
@@ -20,7 +20,7 @@ jest.mock('react-native-safe-area-context', () =>
   jest.requireActual('react-native-safe-area-context/jest/mock').default,
 );
 jest.mock('@/config/env', () => ({ getApiBaseUrl: () => 'https://api.example.test' }));
-jest.mock('@/services/sessionService', () => ({ getAccessToken: jest.fn(), removeAccessToken: jest.fn() }));
+jest.mock('@/services/sessionService', () => ({ getAccessToken: jest.fn(), invalidateAccessToken: jest.fn(), removeAccessToken: jest.fn() }));
 jest.mock('@/features/authentication/data/google-auth-gateway', () => ({ openGoogleAuthSession: jest.fn() }));
 
 let fetchMock: jest.SpiedFunction<typeof fetch>;
@@ -55,6 +55,9 @@ beforeEach(() => {
   signOut.mockReset().mockResolvedValue(undefined);
   jest.mocked(getAccessToken).mockReset().mockResolvedValue('private-access-token');
   jest.mocked(removeAccessToken).mockReset().mockResolvedValue(undefined);
+  jest.mocked(invalidateAccessToken).mockReset().mockImplementation(async () => {
+    await removeAccessToken(); await signOut(); return true;
+  });
   fetchMock = jest.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
     if (url === 'https://api.example.test/api/user/profile') return response({ ...account, password: 'hidden-password', accessToken: 'hidden-token' });
     if (url === 'https://api.example.test/api/trainer/profile') {
