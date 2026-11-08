@@ -69,6 +69,8 @@ function verifyAndroidRelease() {
 
   const nativeRoot = path.join(snapshot, 'android');
   const properties = fs.readFileSync(path.join(nativeRoot, 'gradle.properties'), 'utf8');
+  const targetSdk = Number(properties.match(/^android\.targetSdkVersion=(\d+)$/m)?.[1]);
+  assert.ok(targetSdk >= 36, 'El proyecto generado debe declarar targetSdk 36 o superior.');
   const gradle = fs.readFileSync(path.join(nativeRoot, 'app', 'build.gradle'), 'utf8');
   const proguard = fs.readFileSync(path.join(nativeRoot, 'app', 'proguard-rules.pro'), 'utf8');
   for (const property of ['android.enableMinifyInReleaseBuilds', 'android.enableShrinkResourcesInReleaseBuilds']) {
@@ -106,6 +108,8 @@ function verifyAndroidRelease() {
     ])),
     snapshot: path.relative(projectRoot, snapshot),
     minifyEnabled: true,
+    configuredTargetSdk: targetSdk,
+    binaryTargetSdkVerified: false,
     shrinkResources: true,
     releaseCleartextBlocked: true,
     systemCertificateAuthoritiesOnly: true,

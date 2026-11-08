@@ -20,6 +20,20 @@ function respond(body: unknown, status = 200, etag?: string) {
 beforeEach(() => { jest.resetAllMocks(); jest.mocked(isArcoBackendEnabled).mockReturnValue(true); });
 
 describe('adaptadores ARCO', () => {
+  it('recupera folios propios desde el servidor y rechaza listas duplicadas o respuestas ambiguas', async () => {
+    respond({ requests: [{ ...cancellationRequest(), status: 'under_review', version: 2 }] });
+    expect((await api.listCancellationRequests())[0].status).toBe('under_review');
+    expect(request).toHaveBeenLastCalledWith('/api/user/account-cancellation-requests', expect.any(Object));
+    respond({ requests: [cancellationRequest(), cancellationRequest()] });
+    await expect(api.listCancellationRequests()).rejects.toMatchObject({ code: 'INVALID_ARCO_RESPONSE' });
+    respond({ requests: [] }, 202);
+    await expect(api.listCancellationRequests()).rejects.toMatchObject({ code: 'INVALID_ARCO_RESPONSE' });
+  });
+  it('Google sin contraseña envía solo el método de verificación adicional', async () => {
+    respond(reauthenticationChallenge(),202);
+    expect((await api.startCancellationReauthentication('', 'google-email')).kind).toBe('challenge');
+    expect(request).toHaveBeenCalledWith('/api/auth/reauthenticate',expect.objectContaining({body:{purpose:'account-cancellation',method:'google-email'}}));
+  });
   it('desactivado no emite peticiones nuevas', async () => {
     jest.mocked(isArcoBackendEnabled).mockReturnValue(false);
     await expect(api.getPrivacyNotice()).rejects.toMatchObject({ code: 'ARCO_DISABLED' });

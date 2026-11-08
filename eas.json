@@ -31,7 +31,8 @@
       "autoIncrement": true,
       "environment": "production",
       "env": {
-        "EXPO_PUBLIC_ARCO_BACKEND_ENABLED": "false"
+        "EXPO_PUBLIC_API_URL": "https://server-titanium.onrender.com",
+        "EXPO_PUBLIC_ARCO_BACKEND_ENABLED": "true"
       },
       "android": {
         "buildType": "app-bundle",

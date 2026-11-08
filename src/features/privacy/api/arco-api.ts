@@ -2,7 +2,7 @@ import { isArcoBackendEnabled } from '@/features/privacy/models/arco-config';
 import {
   consentFor, invalidContract, isUuid, parseArcoProfile, parseCancellation, parseChallenge,
   parseConsents, parseNotice, parsePersonalSnapshot, parsePreferences, parseProof, parseReceipt,
-  type OptionalPurpose, type PrivacyNotice, type PrivacyPreferences, type ReauthenticationResult,
+  record, type OptionalPurpose, type PrivacyNotice, type PrivacyPreferences, type ReauthenticationResult,
 } from '@/features/privacy/models/arco-contracts';
 import { validateRectification, type RectificationDraft } from '@/features/privacy/models/personal-data';
 import type { UserRole } from '@/features/authorization/models/user-role';
@@ -66,9 +66,9 @@ export async function patchPrivacyPreference(previous: PrivacyPreferences, purpo
         !updated.preferences.some((p) => p.purpose === old.purpose && p.optOut === old.optOut && p.updatedAt === old.updatedAt))) return invalidContract();
   return updated;
 }
-export async function startCancellationReauthentication(password: string): Promise<ReauthenticationResult> {
+export async function startCancellationReauthentication(password: string, method: 'password' | 'google-email' = 'password'): Promise<ReauthenticationResult> {
   const result = await request('/api/auth/reauthenticate', { method: 'POST',
-    body: { purpose: 'account-cancellation', method: 'password', password } });
+    body: { purpose: 'account-cancellation', method, ...(method === 'password' ? { password } : {}) } });
   if (result.status === 200) return { kind: 'proof', proof: parseProof(result.body) };
   if (result.status === 202) return { kind: 'challenge', challenge: parseChallenge(result.body) };
   return invalidContract();
@@ -90,4 +90,16 @@ export async function getCancellationRequest(requestId: string) {
   const result = await request('/api/user/account-cancellation-requests/' + encodeURIComponent(requestId));
   if (result.status !== 200) return invalidContract();
   return parseCancellation(result.body, requestId);
+}
+
+export async function listCancellationRequests() {
+  const result = await request('/api/user/account-cancellation-requests');
+  const body = record(result.body);
+  if (result.status !== 200 || !Array.isArray(body.requests) || body.requests.length > 50) return invalidContract();
+  const seen = new Set<string>();
+  return body.requests.map((value: unknown) => {
+    const parsed = parseCancellation(value);
+    if (seen.has(parsed.requestId)) return invalidContract();
+    seen.add(parsed.requestId); return parsed;
+  });
 }

@@ -5,6 +5,7 @@ import { AppButton } from '@/components/ui/app-button';
 import { AppInput } from '@/components/ui/app-input';
 import { ErrorState, LoadingState } from '@/components/ui/screen-state';
 import { useArcoCenterViewModel } from '@/features/privacy/viewmodels/use-arco-center-view-model';
+import { cancellationStatusLabels } from '@/features/privacy/models/arco-contracts';
 import { AppColors, AppFonts, AppFontSizes, AppSpacing } from '@/theme/tokens';
 
 const PURPOSE_LABELS = {
@@ -94,13 +95,15 @@ export function ArcoCenterView() {
       <View style={styles.card}>
         <Text accessibilityRole="header" style={styles.title}>Cancelación de cuenta</Text>
         <Text style={styles.text}>Solicitar la cancelación inicia una revisión; tu cuenta y membresías siguen activas. No elimina pagos ni historial. La conservación y la baja efectiva deben ser resueltas por el responsable.</Text>
-        <Text style={styles.text}>Necesitas tu contraseña local y, cuando corresponda, un segundo factor nuevo. Las cuentas exclusivamente Google deben utilizar el canal ARCO del aviso.</Text>
+        <Text style={styles.text}>Necesitas verificar tu identidad con un factor nuevo. Para cuentas Google sin contraseña, inicia sesión con Google y verifica el correo o factor configurado.</Text>
+        <AppButton title="Abrir página web de eliminación" variant="outline" onPress={() => void vm.openAccountDeletionPage()} />
         {!vm.challenge && !vm.proofExpiresAt && !vm.pendingRetry ? (
           <>
-            <AppInput accessibilityLabel="Contraseña actual" label="Contraseña actual"
+            {!vm.profile?.reauthenticationMethods?.includes('google-email') ? <><AppInput accessibilityLabel="Contraseña actual" label="Contraseña actual"
               leftIcon={{ ios: 'lock', android: 'lock', web: 'lock' }} secureTextEntry autoCapitalize="none"
               autoComplete="off" autoCorrect={false} value={vm.password} editable={!busy} onChangeText={vm.setPassword} />
-            <AppButton title="Verificar identidad" disabled={busy} loading={vm.busy === 'reauthenticate'} onPress={() => void vm.reauthenticate()} />
+            <AppButton title="Verificar identidad" disabled={busy} loading={vm.busy === 'reauthenticate'} onPress={() => void vm.reauthenticate()} /></> : null}
+            {vm.profile?.reauthenticationMethods?.includes('google-email') ? <AppButton title="Verificar cuenta Google sin contraseña" disabled={busy} onPress={() => void vm.reauthenticateGoogle()} /> : null}
           </>
         ) : null}
         {vm.challenge ? (
@@ -139,12 +142,15 @@ export function ArcoCenterView() {
           value={vm.requestId} editable={!busy} onChangeText={vm.setRequestId} />
         <AppButton title="Consultar solicitud" variant="outline" disabled={busy || !vm.requestId.trim()}
           loading={vm.busy === 'lookup'} onPress={() => void vm.lookupCancellation()} />
+        {vm.cancellationLoading ? <LoadingState label="Recuperando tus solicitudes…" /> : null}
+        {vm.cancellationError ? <ErrorState message={vm.cancellationError} onRetry={vm.retryCancellations} /> : null}
         {vm.cancellation ? (
           <View>
             <Text selectable style={styles.text}>Folio: {vm.cancellation.requestId}</Text>
-            <Text style={styles.text}>Estado: pendiente de revisión.</Text>
+            <Text style={styles.text}>Estado: {cancellationStatusLabels[vm.cancellation.status].toLowerCase()}.</Text>
             <Text style={styles.text}>Fecha de recepción: {vm.cancellation.createdAt}</Text>
-            <Text style={styles.text}>La política de conservación aún requiere aprobación. No hay una eliminación confirmada.</Text>
+            {vm.cancellation.resolvedAt ? <Text style={styles.text}>Fecha de resolución: {vm.cancellation.resolvedAt}</Text> : <Text style={styles.text}>El trámite sigue abierto. No hay una eliminación confirmada.</Text>}
+            {vm.cancellation.retentionSummary.map((rule) => <Text key={rule.category} style={styles.text}>{rule.category}: {rule.policyStatus === 'approved' ? `${rule.reason}. Conservación hasta ${rule.retainUntil}.` : 'Política de conservación pendiente de aprobación.'}</Text>)}
           </View>
         ) : null}
       </View>

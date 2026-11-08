@@ -1,4 +1,5 @@
-import { act, fireEvent, render, screen, userEvent } from '@testing-library/react-native';
+import { fireEvent, render, screen, userEvent } from '@testing-library/react-native';
+import * as WebBrowser from 'expo-web-browser';
 import type { ReactElement } from 'react';
 import { router } from 'expo-router';
 
@@ -79,6 +80,7 @@ beforeEach(() => {
     }
     if (path === '/api/auth/reauthenticate/verify') return response(reauthenticationProof());
     if (path === '/api/user/account-cancellation-requests') {
+      if (method === 'GET') return response({ requests: receivedCancellation ? [receivedCancellation] : [] });
       receivedCancellation ??= cancellationRequest();
       if (lostResponse) { lostResponse = false; throw new TypeError('Simulated response loss'); }
       return response(receivedCancellation, 202);
@@ -101,6 +103,17 @@ async function verifyPassword() {
 }
 
 describe('ARCO conectado a contratos reales con HTTP simulado', () => {
+  it('Google sin contraseña usa factor nuevo y abre la página pública sin credenciales en la URL', async () => {
+    Object.assign(profile,{provider:'google',loginMethod:'google',reauthenticationMethods:['google-email']});
+    reauthMethod='otp'; await ready(); const user=userEvent.setup();
+    expect(screen.queryByLabelText('Contraseña actual')).toBeNull();
+    await user.press(screen.getByRole('button',{name:'Verificar cuenta Google sin contraseña'}));
+    const [,init]=calls('/api/auth/reauthenticate')[0];
+    expect(JSON.parse(String(init?.body))).toEqual({purpose:'account-cancellation',method:'google-email'});
+    expect(await screen.findByLabelText('Código de verificación ARCO')).toBeOnTheScreen();
+    await user.press(screen.getByRole('button',{name:'Abrir página web de eliminación'}));
+    expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith('https://titaniumsportgym.vercel.app/eliminar-cuenta');
+  });
   it.each(['cliente', 'entrenador', 'administrador'] as const)('acceso y PATCH propio con ETag para %s', async (role) => {
     await ready(role);
     expect(screen.queryByText('hidden-password')).toBeNull();
