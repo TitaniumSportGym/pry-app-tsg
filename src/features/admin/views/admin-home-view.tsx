@@ -143,7 +143,7 @@ export function AdminHomeView() {
             {viewModel.accessChart.bars.map((bar) => (
               <View key={bar.hour} style={styles.barColumn}>
                 <View
-                  style={[styles.bar, { height: bar.value }, bar.isCurrent && styles.barCurrent]}
+                  style={[styles.bar, { height: bar.height }, bar.isCurrent && styles.barCurrent]}
                 />
                 <Text style={styles.barLabel}>{bar.hour}</Text>
               </View>
