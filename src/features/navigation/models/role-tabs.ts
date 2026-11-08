@@ -1,4 +1,4 @@
-import type { AppTab } from '@/components/navigation/app-tab-bar';
+import type { AppTab, TabBarCenterAction } from '@/components/navigation/app-tab-bar';
 
 // Every role reaches its account menu from the "Más" tab.
 const MORE_ICON: AppTab['icon'] = {
@@ -63,24 +63,30 @@ export const TRAINER_TABS = [
   { name: 'more', href: '/trainer/account', label: 'Más', icon: MORE_ICON },
 ] as const satisfies readonly AppTab[];
 
+// El botón central "Escanear" no es una pestaña: abre la cámara (ver AdminTabsLayout).
 export const ADMIN_TABS = [
   {
     name: 'home',
     href: '/admin',
     label: 'Inicio',
-    icon: { ios: 'chart.bar.fill', android: 'dashboard', web: 'dashboard' },
+    icon: { ios: 'house.fill', android: 'home', web: 'home' },
+  },
+  {
+    name: 'orders',
+    href: '/admin/orders',
+    label: 'Pedidos',
+    icon: { ios: 'shippingbox.fill', android: 'inventory_2', web: 'inventory_2' },
   },
   {
     name: 'users',
     href: '/admin/users',
-    label: 'Usuarios',
-    icon: { ios: 'person.3.fill', android: 'groups', web: 'groups' },
-  },
-  {
-    name: 'payments',
-    href: '/admin/payments',
-    label: 'Pagos',
-    icon: { ios: 'creditcard.fill', android: 'payments', web: 'payments' },
+    label: 'Socios',
+    icon: { ios: 'person.2.fill', android: 'group', web: 'group' },
   },
   { name: 'more', href: '/admin/account', label: 'Más', icon: MORE_ICON },
 ] as const satisfies readonly AppTab[];
+
+export const ADMIN_SCAN_ACTION = {
+  label: 'Escanear',
+  icon: { ios: 'qrcode.viewfinder', android: 'qr_code_scanner', web: 'qr_code_scanner' },
+} as const satisfies Omit<TabBarCenterAction, 'onPress'>;

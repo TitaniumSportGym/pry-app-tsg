@@ -193,7 +193,7 @@ const ROLE_SECTIONS: Record<UserRole, AccountMenuSection[]> = {
           id: 'payments',
           label: 'Pagos',
           icon: { ios: 'creditcard', android: 'payments', web: 'payments' },
-          route: '/admin/payments',
+          route: '/admin/account/payments',
         },
       ],
     },

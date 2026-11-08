@@ -4,9 +4,10 @@ import { router } from 'expo-router';
 import { Animated, AppState, Linking, Platform, type AppStateStatus } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import AdminTabsLayout from '@/app/admin/(tabs)/_layout';
 import AdminScanScreen from '@/app/admin/scan';
+import type { TabBarCenterAction } from '@/components/navigation/app-tab-bar';
 import { AccessScannerView } from '@/features/access/views/access-scanner-view';
-import { AdminHomeView } from '@/features/admin/views/admin-home-view';
 
 jest.mock('expo-camera', () => {
   const { createElement } = jest.requireActual<typeof import('react')>('react');
@@ -26,6 +27,21 @@ jest.mock('react-native-safe-area-context', () =>
 jest.mock('@/hooks/use-auth', () => ({
   useAuth: () => ({ user: { email: 'admin@example.com' } }),
 }));
+// Las pestañas reales dependen del navegador de Expo Router; aquí solo se dibuja la acción
+// central para comprobar que el layout del administrador la conecta con el escáner.
+jest.mock('@/components/app-tabs', () => {
+  const { createElement } = jest.requireActual<typeof import('react')>('react');
+  const { Pressable } = jest.requireActual<typeof import('react-native')>('react-native');
+  return {
+    __esModule: true,
+    default: ({ centerAction }: { centerAction: TabBarCenterAction }) =>
+      createElement(Pressable, {
+        accessibilityLabel: centerAction.label,
+        accessibilityRole: 'button',
+        onPress: centerAction.onPress,
+      }),
+  };
+});
 
 type CameraPermission = NonNullable<ReturnType<typeof useCameraPermissions>[0]>;
 const granted: CameraPermission = {
@@ -67,11 +83,11 @@ beforeEach(() => {
 afterEach(() => jest.restoreAllMocks());
 
 describe('AccessScannerView con su ViewModel', () => {
-  it('abre la ruta del escáner desde el panel del administrador', async () => {
+  it('abre la ruta del escáner desde el botón central de las pestañas del administrador', async () => {
     const user = userEvent.setup();
-    await render(<AdminHomeView />);
+    await render(<AdminTabsLayout />);
 
-    await user.press(screen.getByRole('button', { name: 'Escanear acceso' }));
+    await user.press(screen.getByRole('button', { name: 'Escanear' }));
 
     expect(router.push).toHaveBeenCalledWith('/admin/scan');
   });
