@@ -44,16 +44,23 @@
       "extends": "development",
       "environment": "development",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://arco-staging.example.invalid",
+        "EXPO_PUBLIC_API_URL": "https://server-titanium.onrender.com",
         "EXPO_PUBLIC_ARCO_BACKEND_ENABLED": "true"
       }
     },
     "arco-release": {
-      "extends": "preview",
+      "distribution": "internal",
+      "developmentClient": false,
       "environment": "preview",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://arco-staging.example.invalid",
+        "EXPO_PUBLIC_API_URL": "https://server-titanium.onrender.com",
         "EXPO_PUBLIC_ARCO_BACKEND_ENABLED": "true"
+      },
+      "android": {
+        "buildType": "apk",
+        "buildArtifactPaths": [
+          "android/app/build/outputs/mapping/release/**"
+        ]
       }
     }
   },
