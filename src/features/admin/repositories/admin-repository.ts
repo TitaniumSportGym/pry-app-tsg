@@ -1,3 +1,4 @@
+
 import {
   repositoryCache,
   type ReadOptions,
@@ -56,15 +57,18 @@ const countActive = (rates: unknown) =>
     ? rates.filter((rate) => (rate as Record<string, unknown> | null)?.active === true).length
     : 0;
 
+/** Fuente de datos predeterminada, compartida y reutilizable. */
+const defaultAdminDataSource: AdminDataSource = {
+  getAdminUsers,
+  getAdminOrders,
+  getAdminPayments,
+  getAdminProducts,
+  getAdminShippingRates,
+  getAdminRoutines,
+};
+
 export function createAdminRepository(
-  dataSource: AdminDataSource = {
-    getAdminUsers,
-    getAdminOrders,
-    getAdminPayments,
-    getAdminProducts,
-    getAdminShippingRates,
-    getAdminRoutines,
-  },
+  dataSource: AdminDataSource = defaultAdminDataSource,
   cache: RepositoryCache = repositoryCache,
 ): AdminRepository {
   const read = <T>(key: string, fetcher: () => Promise<T>, options: ReadOptions = {}) =>
@@ -72,10 +76,26 @@ export function createAdminRepository(
 
   return {
     getMembers: (options) =>
-      read(ADMIN_KEYS.members, async () => parseAdminMembers(await dataSource.getAdminUsers()), options),
+      read(
+        ADMIN_KEYS.members,
+        async () => parseAdminMembers(await dataSource.getAdminUsers()),
+        options,
+      ),
+
     getOrders: (options) =>
-      read(ADMIN_KEYS.orders, async () => parseAdminOrders(await dataSource.getAdminOrders()), options),
-    getPayments: (options) => read(ADMIN_KEYS.payments, () => dataSource.getAdminPayments(), options),
+      read(
+        ADMIN_KEYS.orders,
+        async () => parseAdminOrders(await dataSource.getAdminOrders()),
+        options,
+      ),
+
+    getPayments: (options) =>
+      read(
+        ADMIN_KEYS.payments,
+        () => dataSource.getAdminPayments(),
+        options,
+      ),
+
     getCatalogCounts: (options) =>
       read(
         ADMIN_KEYS.catalogCounts,
@@ -85,6 +105,7 @@ export function createAdminRepository(
             dataSource.getAdminShippingRates(),
             dataSource.getAdminRoutines(),
           ]);
+
           return {
             products: Array.isArray(products) ? products.length : 0,
             activeShippingRates: countActive(rates),
@@ -93,6 +114,7 @@ export function createAdminRepository(
         },
         options,
       ),
+
     getShippingRates: (options) =>
       read(
         ADMIN_KEYS.shippingRates,
