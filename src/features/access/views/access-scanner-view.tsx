@@ -2,24 +2,52 @@ import { CameraView } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { useEffect, useState } from 'react';
-import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui/app-button';
 import { ACCESS_BARCODE_TYPES } from '@/features/access/models/access-code';
-import { useAccessScannerViewModel } from '@/features/access/viewmodels/use-access-scanner-view-model';
+import type { ScanRejection } from '@/features/access/models/access-errors';
+import {
+  useAccessScannerViewModel,
+  type ScannedMember,
+} from '@/features/access/viewmodels/use-access-scanner-view-model';
 import { AppColors, AppFonts, AppFontSizes, AppSpacing } from '@/theme/tokens';
 
 const VISOR_SIZE = 250;
 const SCAN_LINE_INSET = 20;
 
-const QR_ICON: SymbolViewProps['name'] = { ios: 'qrcode', android: 'qr_code', web: 'qr_code' };
+const PEOPLE_ICON: SymbolViewProps['name'] = { ios: 'person.2', android: 'group', web: 'group' };
+const PERSON_ICON: SymbolViewProps['name'] = { ios: 'person.fill', android: 'person', web: 'person' };
+const CROWN_ICON: SymbolViewProps['name'] = {
+  ios: 'crown',
+  android: 'workspace_premium',
+  web: 'workspace_premium',
+};
+const CLOCK_ICON: SymbolViewProps['name'] = { ios: 'clock', android: 'schedule', web: 'schedule' };
+const ALERT_ICON: SymbolViewProps['name'] = {
+  ios: 'exclamationmark.circle',
+  android: 'error',
+  web: 'error',
+};
 
-/** Pantalla 43 · Admin — Escanear acceso. Solo lee el QR; la validación con el backend queda pendiente. */
+/**
+ * Pantallas 43–45 · Admin — Escanear acceso. Lee el QR, lo valida con el backend y muestra
+ * el resultado. Solo la respuesta del servidor permite la entrada.
+ */
 export function AccessScannerView() {
   const viewModel = useAccessScannerViewModel();
   const insets = useSafeAreaInsets();
-  const scanned = viewModel.scannedCode !== null;
+  const scanned = viewModel.scanStatus !== 'idle';
   const cameraReady = viewModel.cameraAccess === 'granted';
 
   return (
@@ -93,39 +121,163 @@ export function AccessScannerView() {
       {cameraReady ? (
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 14) + 20 }]}>
           <View style={styles.grabber} />
-          <View style={styles.sheetRow}>
-            <View style={styles.sheetTile}>
-              <SymbolView name={QR_ICON} size={22} tintColor={AppColors.brand.primary} />
+          {viewModel.scanStatus === 'validating' ? (
+            <View accessibilityLiveRegion="polite" style={styles.validating}>
+              <ActivityIndicator color={AppColors.brand.primary} size="large" />
+              <Text style={styles.validatingText}>Validando acceso…</Text>
             </View>
-            <View style={styles.sheetCopy}>
-              <Text style={styles.sheetCaption}>{scanned ? 'Código leído' : 'Recepción'}</Text>
-              {scanned ? (
-                <Text numberOfLines={2} selectable style={styles.sheetCode}>
-                  {viewModel.scannedCode}
-                </Text>
-              ) : (
-                <Text style={styles.sheetTitle}>Listo para escanear</Text>
-              )}
-            </View>
-          </View>
-          {scanned ? (
+          ) : viewModel.granted ? (
+            <GrantedResult {...viewModel.granted} onNext={viewModel.scanNext} />
+          ) : viewModel.rejection ? (
+            <DeniedResult
+              rejection={viewModel.rejection}
+              onNext={viewModel.scanNext}
+              onRetry={viewModel.retryValidation}
+            />
+          ) : (
             <>
-              <View style={styles.pendingNote}>
-                <SymbolView
-                  name={{ ios: 'clock', android: 'schedule', web: 'schedule' }}
-                  size={18}
-                  tintColor={AppColors.neutral.muted}
-                />
-                <Text style={styles.pendingText}>
-                  La validación del acceso estará disponible pronto. Por ahora solo se lee el
-                  código.
-                </Text>
+              <View style={styles.sheetRow}>
+                <View style={styles.sheetTile}>
+                  <SymbolView name={PEOPLE_ICON} size={22} tintColor={AppColors.brand.primary} />
+                </View>
+                <View style={styles.sheetCopy}>
+                  <Text style={styles.sheetCaption}>Accesos de hoy</Text>
+                  <Text style={styles.sheetTitle}>{viewModel.todayCount}</Text>
+                </View>
+                <View style={styles.sheetLast}>
+                  <Text style={styles.sheetCaption}>Último</Text>
+                  <Text style={styles.sheetLastValue}>{viewModel.todayLast}</Text>
+                </View>
               </View>
-              <AppButton title="Escanear siguiente" onPress={viewModel.scanNext} />
+              <AppButton
+                title="Ver historial de accesos"
+                variant="outline"
+                onPress={viewModel.openHistory}
+              />
             </>
-          ) : null}
+          )}
         </View>
       ) : null}
+    </View>
+  );
+}
+
+interface GrantedResultProps {
+  member: ScannedMember;
+  membership: string;
+  registeredAt: string;
+  onNext: () => void;
+}
+
+/** Pantalla 44 · Acceso permitido: solo se muestra con la confirmación del servidor. */
+function GrantedResult({ member, membership, registeredAt, onNext }: GrantedResultProps) {
+  return (
+    <>
+      <ResultBadge tone="success" />
+      <View accessibilityLiveRegion="polite" style={styles.resultCopy}>
+        <Text accessibilityRole="header" style={[styles.resultTitle, styles.successText]}>
+          ACCESO PERMITIDO
+        </Text>
+        <Text style={styles.resultText}>Membresía activa. La entrada quedó registrada.</Text>
+      </View>
+      <View style={styles.memberCard}>
+        <View style={styles.memberRow}>
+          <View style={styles.memberAvatar}>
+            {member.initials ? (
+              <Text style={styles.memberInitials}>{member.initials}</Text>
+            ) : (
+              <SymbolView name={PERSON_ICON} size={22} tintColor={AppColors.brand.primary} />
+            )}
+          </View>
+          <View style={styles.sheetCopy}>
+            <Text numberOfLines={1} style={styles.memberName}>
+              {member.name}
+            </Text>
+            <Text numberOfLines={1} style={styles.memberDetail}>
+              {member.detail}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.divider} />
+        <InfoRow icon={CROWN_ICON} label="Membresía" value={membership} />
+        <InfoRow icon={CLOCK_ICON} label="Entrada registrada" value={registeredAt} />
+      </View>
+      <AppButton title="Escanear siguiente" onPress={onNext} />
+    </>
+  );
+}
+
+interface DeniedResultProps {
+  rejection: ScanRejection;
+  onNext: () => void;
+  onRetry: () => void;
+}
+
+/** Pantalla 45 · Acceso denegado (o sin confirmar por falta de conexión). */
+function DeniedResult({ rejection, onNext, onRetry }: DeniedResultProps) {
+  const unverified = rejection.kind === 'unverified';
+
+  return (
+    <>
+      <ResultBadge tone="error" />
+      <View accessibilityLiveRegion="polite" style={styles.resultCopy}>
+        <Text accessibilityRole="header" style={[styles.resultTitle, styles.errorText]}>
+          {unverified ? 'SIN CONFIRMAR' : 'ACCESO DENEGADO'}
+        </Text>
+        <Text style={styles.resultText}>No registramos la entrada.</Text>
+      </View>
+      <View style={styles.reason}>
+        <SymbolView name={ALERT_ICON} size={20} tintColor={AppColors.feedback.error} />
+        <View style={styles.sheetCopy}>
+          <Text accessibilityRole="alert" style={styles.reasonTitle}>
+            {rejection.title}
+          </Text>
+          <Text style={styles.reasonText}>{rejection.description}</Text>
+        </View>
+      </View>
+      {unverified ? (
+        <View style={styles.actions}>
+          <View style={styles.action}>
+            <AppButton title="Escanear otro" variant="outline" onPress={onNext} />
+          </View>
+          <View style={styles.action}>
+            <AppButton title="Reintentar" variant="dark" onPress={onRetry} />
+          </View>
+        </View>
+      ) : (
+        <AppButton title="Escanear de nuevo" variant="dark" onPress={onNext} />
+      )}
+    </>
+  );
+}
+
+function ResultBadge({ tone }: { tone: 'success' | 'error' }) {
+  const success = tone === 'success';
+  return (
+    <View style={[styles.badgeOuter, success ? styles.badgeOuterSuccess : styles.badgeOuterError]}>
+      <View style={[styles.badgeInner, success ? styles.badgeInnerSuccess : styles.badgeInnerError]}>
+        <SymbolView
+          name={
+            success
+              ? { ios: 'checkmark', android: 'check', web: 'check' }
+              : { ios: 'xmark', android: 'close', web: 'close' }
+          }
+          size={32}
+          tintColor={AppColors.neutral.white}
+        />
+      </View>
+    </View>
+  );
+}
+
+function InfoRow({ icon, label, value }: { icon: SymbolViewProps['name']; label: string; value: string }) {
+  return (
+    <View style={styles.infoRow}>
+      <SymbolView name={icon} size={16} tintColor={AppColors.brand.primary} />
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text numberOfLines={1} style={styles.infoValue}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -389,30 +541,128 @@ const styles = StyleSheet.create({
     fontSize: 20,
     lineHeight: 26,
   },
-  sheetCode: {
+  sheetLast: { alignItems: 'flex-end', gap: 1 },
+  sheetLastValue: {
     color: AppColors.neutral.black,
     fontFamily: AppFonts.label,
     fontSize: AppFontSizes.label,
     lineHeight: 20,
   },
-  pendingNote: {
+  validating: { alignItems: 'center', gap: AppSpacing.two, paddingVertical: AppSpacing.four },
+  validatingText: {
+    color: AppColors.neutral.description,
+    fontFamily: AppFonts.label,
+    fontSize: AppFontSizes.label,
+    lineHeight: 20,
+  },
+  badgeOuter: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeOuterSuccess: { backgroundColor: AppColors.feedback.successSoft },
+  badgeOuterError: { backgroundColor: AppColors.surface.softSelected },
+  badgeInner: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeInnerSuccess: { backgroundColor: AppColors.feedback.success },
+  badgeInnerError: { backgroundColor: AppColors.feedback.error },
+  resultCopy: { alignItems: 'center', gap: 2 },
+  resultTitle: {
+    fontFamily: AppFonts.display,
+    fontSize: AppFontSizes.hero,
+    letterSpacing: 0.5,
+    lineHeight: 42,
+    textAlign: 'center',
+  },
+  successText: { color: AppColors.feedback.success },
+  errorText: { color: AppColors.feedback.error },
+  resultText: {
+    color: AppColors.neutral.description,
+    fontFamily: AppFonts.body,
+    fontSize: AppFontSizes.label,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  memberCard: {
     width: '100%',
-    borderRadius: 16,
-    backgroundColor: AppColors.surface.input,
+    gap: 12,
+    borderRadius: 20,
+    backgroundColor: AppColors.surface.soft,
+    padding: 14,
+  },
+  memberRow: { alignItems: 'center', flexDirection: 'row', gap: 12 },
+  memberAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: AppColors.surface.default,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memberInitials: {
+    color: AppColors.brand.primary,
+    fontFamily: AppFonts.button,
+    fontSize: 17,
+    lineHeight: 24,
+  },
+  memberName: {
+    color: AppColors.neutral.black,
+    fontFamily: AppFonts.button,
+    fontSize: 17,
+    lineHeight: 24,
+  },
+  memberDetail: {
+    color: AppColors.neutral.muted,
+    fontFamily: AppFonts.body,
+    fontSize: AppFontSizes.caption,
+    lineHeight: 16,
+  },
+  divider: { height: 1, backgroundColor: AppColors.border.soft },
+  infoRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
+  infoLabel: {
+    flex: 1,
+    color: AppColors.neutral.description,
+    fontFamily: AppFonts.body,
+    fontSize: AppFontSizes.label,
+    lineHeight: 20,
+  },
+  infoValue: {
+    color: AppColors.neutral.black,
+    fontFamily: AppFonts.label,
+    fontSize: AppFontSizes.label,
+    lineHeight: 20,
+  },
+  reason: {
+    width: '100%',
     alignItems: 'center',
     flexDirection: 'row',
     gap: 10,
+    borderRadius: 16,
+    backgroundColor: AppColors.surface.softSelected,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  pendingText: {
-    minWidth: 0,
-    flex: 1,
+  reasonTitle: {
+    color: AppColors.feedback.error,
+    fontFamily: AppFonts.label,
+    fontSize: AppFontSizes.label,
+    lineHeight: 20,
+  },
+  reasonText: {
     color: AppColors.neutral.description,
     fontFamily: AppFonts.body,
     fontSize: AppFontSizes.caption,
     lineHeight: 16,
   },
+  actions: { width: '100%', flexDirection: 'row', gap: 10 },
+  action: { flex: 1 },
   permission: {
     flex: 1,
     alignItems: 'center',

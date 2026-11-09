@@ -21,7 +21,7 @@ jest.mock('@/features/training/api/training-api');
 const repositories = [
   {
     name: 'membresías', ttl: 600_000, source: jest.mocked(getMembershipPlans),
-    create: (fetcher: jest.Mock, cache?: RepositoryCache) => createMembershipsRepository({ getMembershipPlans: fetcher, getMembershipPlan }, cache).getPlans,
+    create: (fetcher: jest.Mock, cache?: RepositoryCache) => createMembershipsRepository({ getMembershipPlans: fetcher, getMembershipPlan, getMySubscription: jest.fn() }, cache).getPlans,
     readDefault: () => createMembershipsRepository().getPlans(),
   },
   {

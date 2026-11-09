@@ -1,45 +1,58 @@
 import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { ComingSoonBadge } from '@/components/ui/coming-soon-badge';
+import type { CurrentPlan } from '@/features/memberships/viewmodels/use-my-subscription';
 import { AppColors, AppFonts, AppFontSizes, AppSpacing } from '@/theme/tokens';
 
 interface MembershipCardProps {
   isAuthenticated: boolean;
+  /** Plan vigente del socio; null si no tiene membresía activa (o aún carga). */
+  plan: CurrentPlan | null;
   onOpenMemberships: () => void;
+  onOpenAccess: () => void;
   onLogin: () => void;
 }
 
 /**
- * The backend does not expose the member's active membership yet, so the card
- * invites to choose a plan instead of showing made-up dates.
+ * Plan vigente del socio con su vigencia y días restantes; sin membresía invita a
+ * elegir un plan. Los socios abren su QR desde aquí ("Inicio → Mi acceso").
  */
-export function MembershipCard({ isAuthenticated, onOpenMemberships, onLogin }: MembershipCardProps) {
+export function MembershipCard({
+  isAuthenticated,
+  plan,
+  onOpenMemberships,
+  onOpenAccess,
+  onLogin,
+}: MembershipCardProps) {
   return (
     <View style={styles.card}>
       <View pointerEvents="none" style={styles.decoration} />
-      <Text style={styles.label}>TU MEMBRESÍA</Text>
-      <Text style={styles.title}>TITANIUM</Text>
+      <Text style={styles.label}>{plan ? 'TU MEMBRESÍA ACTIVA' : 'TU MEMBRESÍA'}</Text>
+      <Text numberOfLines={1} style={styles.title}>
+        {plan ? plan.name.toUpperCase() : 'TITANIUM'}
+      </Text>
       <Text style={styles.description}>
-        {isAuthenticated
-          ? 'Consulta los planes y elige el que se adapte a tus objetivos.'
-          : 'Conoce los planes y crea tu cuenta para empezar a entrenar.'}
+        {plan
+          ? plan.validity
+          : isAuthenticated
+            ? 'Aún no tienes una membresía activa. Consulta los planes y elige el tuyo.'
+            : 'Conoce los planes y crea tu cuenta para empezar a entrenar.'}
       </Text>
 
       <View style={styles.actions}>
         {isAuthenticated ? (
-          <View
-            accessible
-            accessibilityLabel="Mi acceso, próximamente"
-            accessibilityState={{ disabled: true }}
-            style={[styles.button, styles.secondaryButton, styles.disabled]}>
+          <Pressable
+            accessibilityLabel="Mi acceso"
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.button, styles.secondaryButton, pressed && styles.pressed]}
+            onPress={onOpenAccess}>
             <SymbolView
               name={{ ios: 'qrcode', android: 'qr_code_2', web: 'qr_code_2' }}
               size={18}
               tintColor={AppColors.neutral.text}
             />
             <Text style={styles.secondaryText}>MI ACCESO</Text>
-          </View>
+          </Pressable>
         ) : (
           <Pressable
             accessibilityRole="button"
@@ -52,15 +65,9 @@ export function MembershipCard({ isAuthenticated, onOpenMemberships, onLogin }: 
           accessibilityRole="button"
           style={({ pressed }) => [styles.button, styles.primaryButton, pressed && styles.pressed]}
           onPress={onOpenMemberships}>
-          <Text style={styles.primaryText}>VER PLANES</Text>
+          <Text style={styles.primaryText}>{plan ? 'RENOVAR' : 'VER PLANES'}</Text>
         </Pressable>
       </View>
-      {isAuthenticated ? (
-        <View style={styles.footnote}>
-          <ComingSoonBadge />
-          <Text style={styles.footnoteText}>Pronto verás aquí tu plan y días restantes.</Text>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -121,20 +128,6 @@ const styles = StyleSheet.create({
     color: AppColors.neutral.white,
     fontFamily: AppFonts.button,
     fontSize: AppFontSizes.label,
-  },
-  disabled: { opacity: 0.55 },
-  footnote: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: AppSpacing.two,
-    marginTop: AppSpacing.two,
-  },
-  footnoteText: {
-    flex: 1,
-    color: AppColors.neutral.mutedOnDark,
-    fontFamily: AppFonts.body,
-    fontSize: 11,
-    lineHeight: 15,
   },
   pressed: { opacity: 0.8 },
 });

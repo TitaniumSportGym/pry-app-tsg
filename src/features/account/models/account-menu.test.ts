@@ -26,6 +26,8 @@ describe('menú de la cuenta', () => {
     expect(availableRoutes('cliente')).toEqual([
       '/account/personal-data',
       '/memberships',
+      '/account/access',
+      '/account/access/history',
       '/account/payments',
       '/account/routines',
       '/account/privacy',
@@ -43,6 +45,7 @@ describe('menú de la cuenta', () => {
       '/admin/account/personal-data',
       '/admin/users',
       '/admin/account/payments',
+      '/admin/access-history',
       '/admin/account/privacy',
       '/admin/account/terms',
     ]);

@@ -65,6 +65,16 @@ function toSearchableText(value: unknown): string {
   return serialized.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+/**
+ * 403 de reglas de negocio: la sesión sigue siendo válida. Los del acceso QR hablan del
+ * token del pase, no del de sesión, así que su texto no debe cerrar la sesión.
+ */
+const BUSINESS_FORBIDDEN_CODES = new Set([
+  "MEMBERSHIP_REQUIRED",
+  "QR_OWNER_INVALID",
+  "SELF_SCAN_FORBIDDEN",
+]);
+
 export function shouldInvalidateSession(
   status: number,
   body: unknown,
@@ -77,7 +87,8 @@ export function shouldInvalidateSession(
     return false;
   }
 
-  if (extractErrorCode(body) === "MEMBERSHIP_REQUIRED") {
+  const code = extractErrorCode(body);
+  if (code && BUSINESS_FORBIDDEN_CODES.has(code)) {
     return false;
   }
 
@@ -102,6 +113,12 @@ export function shouldInvalidateSession(
   ];
 
   return authSignals.some((signal) => text.includes(signal));
+}
+
+/** Retry-After in whole seconds; the HTTP-date form is ignored and absurd values are capped. */
+export function parseRetryAfterSeconds(value: string | null | undefined): number | undefined {
+  if (!value || !/^\d+$/.test(value.trim())) return undefined;
+  return Math.min(Number(value.trim()), 3600);
 }
 
 async function parseResponseBody(response: Response): Promise<unknown> {
@@ -197,6 +214,7 @@ export async function apiRequest<T>(
       responseBody,
       extractErrorCode(responseBody),
     );
+    apiError.retryAfterSeconds = parseRetryAfterSeconds(response.headers?.get?.("retry-after"));
 
     if (auth && shouldInvalidateSession(response.status, responseBody)) {
       await invalidate(apiError);

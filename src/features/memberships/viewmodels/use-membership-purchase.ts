@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { createMembershipCheckout } from '@/features/memberships/api/checkout-api';
 import { getCheckoutErrorMessage, getIdempotencyKey } from '@/features/memberships/models/checkout';
 import type { MembershipArea } from '@/features/memberships/models/membership-area';
+import { membershipsRepository } from '@/features/memberships/repositories/memberships-repository';
 import { paymentsRepository } from '@/features/payments/repositories/payments-repository';
 import { routinesRepository } from '@/features/training/repositories/routines-repository';
 import { useAuth } from '@/hooks/use-auth';
@@ -35,13 +36,19 @@ export function useMembershipPurchase(area: MembershipArea) {
       setIsBuying(true);
       try {
         const key = getIdempotencyKey(`membership:${membershipPlanId}`);
-        const { checkoutUrl } = await createMembershipCheckout(membershipPlanId, key);
+        const { checkoutUrl, orderId } = await createMembershipCheckout(membershipPlanId, key);
         await WebBrowser.openBrowserAsync(checkoutUrl);
         // El pago pudo aprobarse mientras el navegador estaba abierto: las
         // siguientes lecturas van al servidor y las pantallas abiertas (inicio,
         // pagos, rutinas) se recargan solas.
         paymentsRepository.invalidate();
         routinesRepository.invalidate();
+        membershipsRepository.invalidateSubscription();
+        // En Android el navegador se abre sin esperar a que se cierre; la pantalla de
+        // verificación consulta el estado solo cuando la app vuelve al primer plano.
+        if (orderId) {
+          router.push({ pathname: '/memberships/payment-result', params: { orderId } });
+        }
       } catch (error) {
         setErrorMessage(getCheckoutErrorMessage(error));
       } finally {

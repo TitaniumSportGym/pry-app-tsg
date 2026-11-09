@@ -1,4 +1,5 @@
-import { parseCheckoutResponse } from '@/features/memberships/models/checkout';
+import { isValidOrderId, parseCheckoutResponse } from '@/features/memberships/models/checkout';
+import { parseOrderPaymentStatus } from '@/features/memberships/models/payment-status';
 import { apiRequest } from '@/services/apiClient';
 import { ApiError } from '@/types/auth';
 
@@ -18,4 +19,15 @@ export async function createMembershipCheckout(membershipPlanId: string, idempot
   }
 
   return checkout;
+}
+
+/** Estado del pago de una orden propia, según el servidor. */
+export async function getOrderPaymentStatus(orderId: string) {
+  if (!isValidOrderId(orderId)) throw new ApiError('Orden no encontrada.', 404);
+
+  const status = parseOrderPaymentStatus(
+    await apiRequest<unknown>(`/api/orders/${encodeURIComponent(orderId)}/payment-status`),
+  );
+  if (!status) throw new ApiError('El servidor respondió con un estado de pago no válido.', 502);
+  return status;
 }

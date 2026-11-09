@@ -13,6 +13,7 @@ import {
   PAYMENT_KEYS,
   paymentsRepository,
 } from '@/features/payments/repositories/payments-repository';
+import { useMySubscription } from '@/features/memberships/viewmodels/use-my-subscription';
 import { formatProductPrice } from '@/features/store/models/product';
 import { productsRepository } from '@/features/store/repositories/products-repository';
 import { useAuth } from '@/hooks/use-auth';
@@ -32,6 +33,7 @@ export function useHomeViewModel() {
   const memberId = isAuthenticated ? getMemberId(user?.email) : null;
 
   const products = useAuthorizedResource(productsRepository.getProducts);
+  const subscription = useMySubscription();
 
   // Guests have no payments, so no request is made without a session.
   const loadPayments = useCallback(
@@ -54,6 +56,7 @@ export function useHomeViewModel() {
     greeting: isAuthenticated ? '¡Hola de nuevo!' : 'Hola, invitado',
     initials: getInitials(memberId),
     actions: HOME_ACTIONS,
+    currentPlan: subscription.plan,
 
     recommended: {
       isLoading: products.isLoading,
@@ -91,6 +94,7 @@ export function useHomeViewModel() {
     refresh() {
       products.refresh();
       payments.refresh();
+      subscription.refresh();
     },
 
     openAction(actionId: HomeActionId) {
@@ -100,6 +104,9 @@ export function useHomeViewModel() {
     },
     openMemberships() {
       router.push('/memberships');
+    },
+    openAccess() {
+      router.push('/account/access');
     },
     openStore() {
       router.push('/store');
