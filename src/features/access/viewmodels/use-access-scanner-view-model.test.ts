@@ -3,12 +3,42 @@ import { useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { router } from 'expo-router';
 import { AppState, Linking, type AppStateStatus } from 'react-native';
 
+import { scanAccessCode } from '@/features/access/api/access-api';
+import { accessRepository } from '@/features/access/repositories/access-repository';
+import { adminRepository } from '@/features/admin/repositories/admin-repository';
+import { ApiError } from '@/types/auth';
+
 import { useAccessScannerViewModel } from './use-access-scanner-view-model';
 
 jest.mock('expo-camera', () => ({ useCameraPermissions: jest.fn() }));
 jest.mock('expo-router', () => ({
-  router: { canGoBack: jest.fn(), back: jest.fn(), replace: jest.fn() },
+  router: { canGoBack: jest.fn(), back: jest.fn(), replace: jest.fn(), push: jest.fn() },
 }));
+jest.mock('@/hooks/use-auth', () => {
+  const auth = { signOut: async () => undefined };
+  return { useAuth: () => auth };
+});
+jest.mock('@/features/access/api/access-api', () => ({ scanAccessCode: jest.fn() }));
+jest.mock('@/features/access/repositories/access-repository', () => ({
+  ACCESS_KEYS: { all: 'access', mine: 'access:me', admin: 'access:admin' },
+  accessRepository: { getTodaySummary: jest.fn(), invalidate: jest.fn() },
+}));
+jest.mock('@/features/admin/repositories/admin-repository', () => ({
+  adminRepository: { getMembers: jest.fn() },
+}));
+
+const MEMBER_ID = 'b2ec5cc4-2186-4f87-bcff-b2240678f907';
+const grantedAccess = {
+  id: '25ae449c-b5ab-4b45-9be3-3fd7602a659a',
+  userId: MEMBER_ID,
+  scannedAt: new Date(2026, 10, 3, 12, 34),
+  subscriptionStatus: 'active',
+};
+
+/** Deja la validación esperando al servidor, como pasa mientras llega la respuesta. */
+function pendingScan() {
+  jest.mocked(scanAccessCode).mockReturnValue(new Promise(() => undefined));
+}
 
 type CameraPermission = NonNullable<ReturnType<typeof useCameraPermissions>[0]>;
 
@@ -43,6 +73,13 @@ beforeEach(() => {
   requestPermission.mockReset().mockResolvedValue(granted);
   getPermission.mockReset().mockResolvedValue(granted);
   jest.mocked(useCameraPermissions).mockReturnValue([granted, requestPermission, getPermission]);
+  jest.mocked(scanAccessCode).mockReset();
+  pendingScan();
+  jest
+    .mocked(accessRepository.getTodaySummary)
+    .mockReset()
+    .mockResolvedValue({ count: 48, lastAt: new Date(2026, 10, 3, 12, 31), capped: false });
+  jest.mocked(adminRepository.getMembers).mockReset().mockResolvedValue([]);
   jest.spyOn(Linking, 'openSettings').mockResolvedValue(undefined);
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
     onAppStateChange = listener;
@@ -65,7 +102,7 @@ describe('useAccessScannerViewModel', () => {
 
     expect(result.current.cameraAccess).toBe(access);
     expect(result.current.permissionError).toBeNull();
-    expect(result.current.scannedCode).toBeNull();
+    expect(result.current.scanStatus).toBe('idle');
     expect(result.current.torchOn).toBe(false);
     expect(requestPermission).not.toHaveBeenCalled();
     expect(Linking.openSettings).not.toHaveBeenCalled();
@@ -132,7 +169,7 @@ describe('useAccessScannerViewModel', () => {
     expect(removeSubscription).toHaveBeenCalledTimes(2);
   });
 
-  it('normaliza un QR válido y bloquea lecturas repetidas antes del siguiente render', async () => {
+  it('envía al backend un solo QR normalizado y bloquea lecturas repetidas mientras valida', async () => {
     const { result } = await renderHook(useAccessScannerViewModel);
 
     await act(() => {
@@ -141,35 +178,127 @@ describe('useAccessScannerViewModel', () => {
       result.current.handleBarcodeScanned(barcode('TSG-ACC-002'));
     });
 
-    expect(result.current.scannedCode).toBe('TSG-ACC-001');
+    expect(result.current.scanStatus).toBe('validating');
     await act(() => result.current.handleBarcodeScanned(barcode('TSG-ACC-003')));
-    expect(result.current.scannedCode).toBe('TSG-ACC-001');
+    expect(scanAccessCode).toHaveBeenCalledTimes(1);
+    expect(scanAccessCode).toHaveBeenCalledWith('TSG-ACC-001');
   });
 
-  it.each(['', '   ', '\n\t'])('ignora un QR vacío (%j) sin bloquear una lectura posterior', async (data) => {
+  it.each(['', '   ', '\n\t', 'x'.repeat(300)])(
+    'ignora un QR vacío o que no puede ser un pase (%#) sin bloquear una lectura posterior',
+    async (data) => {
+      const { result } = await renderHook(useAccessScannerViewModel);
+
+      await act(() => result.current.handleBarcodeScanned(barcode(data)));
+      expect(result.current.scanStatus).toBe('idle');
+      expect(scanAccessCode).not.toHaveBeenCalled();
+
+      await act(() => result.current.handleBarcodeScanned(barcode('TSG-ACC-001')));
+      expect(scanAccessCode).toHaveBeenCalledWith('TSG-ACC-001');
+    },
+  );
+
+  it('muestra el acceso permitido con los datos del socio y recarga el historial', async () => {
+    jest.mocked(scanAccessCode).mockResolvedValue(grantedAccess);
+    jest.mocked(adminRepository.getMembers).mockResolvedValue([
+      {
+        id: MEMBER_ID,
+        email: '20230008@uthh.edu.mx',
+        memberId: '20230008',
+        initials: 'UT',
+        verified: true,
+        createdAt: null,
+      },
+    ]);
     const { result } = await renderHook(useAccessScannerViewModel);
 
-    await act(() => result.current.handleBarcodeScanned(barcode(data)));
-    expect(result.current.scannedCode).toBeNull();
+    await act(() => result.current.handleBarcodeScanned(barcode('TOKEN-OK')));
 
-    await act(() => result.current.handleBarcodeScanned(barcode('TSG-ACC-001')));
-    expect(result.current.scannedCode).toBe('TSG-ACC-001');
+    expect(result.current.scanStatus).toBe('granted');
+    expect(result.current.granted?.member).toEqual({
+      name: 'Socio 20230008',
+      detail: '20230008@uthh.edu.mx',
+      initials: null,
+    });
+    expect(result.current.granted?.membership).toBe('Activa');
+    expect(accessRepository.invalidate).toHaveBeenCalledTimes(1);
+  });
+
+  it('permite la entrada aunque no se pueda leer la lista de socios', async () => {
+    jest.mocked(scanAccessCode).mockResolvedValue(grantedAccess);
+    jest.mocked(adminRepository.getMembers).mockRejectedValue(new Error('sin red'));
+    const { result } = await renderHook(useAccessScannerViewModel);
+
+    await act(() => result.current.handleBarcodeScanned(barcode('TOKEN-OK')));
+
+    expect(result.current.scanStatus).toBe('granted');
+    expect(result.current.granted?.member.name).toBe('Socio Titanium');
+  });
+
+  it('muestra el motivo del rechazo del servidor y no reintenta el mismo código', async () => {
+    jest
+      .mocked(scanAccessCode)
+      .mockRejectedValue(new ApiError('El código QR expiró.', 410, undefined, 'QR_EXPIRED'));
+    const { result } = await renderHook(useAccessScannerViewModel);
+
+    await act(() => result.current.handleBarcodeScanned(barcode('TOKEN-VIEJO')));
+    await act(() => result.current.retryValidation());
+
+    expect(result.current.scanStatus).toBe('rejected');
+    expect(result.current.rejection).toMatchObject({ kind: 'denied', title: 'Código vencido' });
+    expect(scanAccessCode).toHaveBeenCalledTimes(1);
+    expect(accessRepository.invalidate).not.toHaveBeenCalled();
+  });
+
+  it('sin conexión nunca concede el acceso y reintenta el mismo código', async () => {
+    jest
+      .mocked(scanAccessCode)
+      .mockRejectedValueOnce(new TypeError('Network request failed'))
+      .mockResolvedValueOnce(grantedAccess);
+    const { result } = await renderHook(useAccessScannerViewModel);
+
+    await act(() => result.current.handleBarcodeScanned(barcode('TOKEN-RED')));
+    expect(result.current.rejection?.kind).toBe('unverified');
+    expect(result.current.granted).toBeNull();
+
+    await act(() => result.current.retryValidation());
+
+    expect(scanAccessCode).toHaveBeenNthCalledWith(2, 'TOKEN-RED');
+    expect(result.current.scanStatus).toBe('granted');
+  });
+
+  it('respeta Retry-After cuando el backend limita los escaneos', async () => {
+    const limited = new ApiError('Demasiadas solicitudes', 429, undefined, 'ACCESS_RATE_LIMITED');
+    limited.retryAfterSeconds = 30;
+    jest.mocked(scanAccessCode).mockRejectedValue(limited);
+    const { result } = await renderHook(useAccessScannerViewModel);
+
+    await act(() => result.current.handleBarcodeScanned(barcode('TOKEN-1')));
+    expect(result.current.rejection?.description).toBe('Espera 30 s antes de escanear de nuevo.');
+
+    await act(() => result.current.scanNext());
+    await act(() => result.current.handleBarcodeScanned(barcode('TOKEN-2')));
+    expect(scanAccessCode).toHaveBeenCalledTimes(1);
   });
 
   it('reinicia la lectura y permite escanear de nuevo incluso el mismo QR', async () => {
+    jest.mocked(scanAccessCode).mockResolvedValue(grantedAccess);
     const { result } = await renderHook(useAccessScannerViewModel);
     await act(() => result.current.handleBarcodeScanned(barcode('TSG-ACC-001')));
 
     await act(() => result.current.scanNext());
-    expect(result.current.scannedCode).toBeNull();
+    expect(result.current.scanStatus).toBe('idle');
     await act(() => result.current.handleBarcodeScanned(barcode('TSG-ACC-001')));
-    expect(result.current.scannedCode).toBe('TSG-ACC-001');
+    expect(scanAccessCode).toHaveBeenCalledTimes(2);
+  });
 
-    await act(() => {
-      result.current.scanNext();
-      result.current.handleBarcodeScanned(barcode('TSG-ACC-002'));
-    });
-    expect(result.current.scannedCode).toBe('TSG-ACC-002');
+  it('resume los accesos de hoy y abre el historial', async () => {
+    const { result } = await renderHook(useAccessScannerViewModel);
+
+    expect(result.current.todayCount).toBe('48 socios');
+    expect(result.current.todayLast).toBe('12:31 p.m.');
+    await act(() => result.current.openHistory());
+    expect(router.push).toHaveBeenCalledWith('/admin/access-history');
   });
 
   it('alterna la linterna y conserva su estado al reiniciar la lectura', async () => {

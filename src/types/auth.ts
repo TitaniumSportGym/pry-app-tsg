@@ -68,6 +68,8 @@ export class ApiError extends Error {
   public readonly status: number;
   public readonly data?: unknown;
   public readonly code?: string;
+  /** Seconds the server asked to wait (Retry-After header) before trying again. */
+  public retryAfterSeconds?: number;
 
   constructor(message: string, status: number, data?: unknown, code?: string) {
     super(message);

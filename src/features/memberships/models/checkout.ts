@@ -36,12 +36,25 @@ export function isTrustedCheckoutUrl(url: unknown): url is string {
   }
 }
 
-/** The checkout response must carry a trusted Mercado Pago URL. */
-export function parseCheckoutResponse(raw: unknown) {
-  const checkoutUrl =
-    typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>).checkoutUrl : null;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-  return isTrustedCheckoutUrl(checkoutUrl) ? { checkoutUrl } : null;
+/** Ids de orden: solo UUID, para no armar rutas ni URLs con datos inesperados. */
+export function isValidOrderId(id: unknown): id is string {
+  return typeof id === 'string' && UUID_PATTERN.test(id);
+}
+
+/**
+ * The checkout response must carry a trusted Mercado Pago URL. The order id, when
+ * valid, lets the app check the payment status after Mercado Pago.
+ */
+export function parseCheckoutResponse(
+  raw: unknown,
+): { checkoutUrl: string; orderId?: string } | null {
+  const record = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
+  const { checkoutUrl, orderId } = record;
+
+  if (!isTrustedCheckoutUrl(checkoutUrl)) return null;
+  return isValidOrderId(orderId) ? { checkoutUrl, orderId } : { checkoutUrl };
 }
 
 const idempotencyKeys = new Map<string, string>();

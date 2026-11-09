@@ -113,6 +113,30 @@ it.each([
   [401, {}, true], [403, { error: 'jwt expired' }, true], [403, { error: 'Token revocado o inválido' }, true],
   [403, { error: 'Sesión expirada' }, true], [403, { error: 'No tienes permisos' }, false],
   [403, { code: 'MEMBERSHIP_REQUIRED' }, false], [200, {}, false],
+  // Los rechazos del acceso QR hablan del token del pase, no del de sesión.
+  [403, { code: 'SELF_SCAN_FORBIDDEN', error: 'Token QR inválido para esta cuenta' }, false],
+  [403, { code: 'QR_OWNER_INVALID', error: 'Token inválido' }, false],
 ])('classifies backend auth semantics %s / %j', (status, body, expected) => {
   expect(shouldInvalidateSession(status, body)).toBe(expected);
 });
+
+it('exposes Retry-After in seconds on a rate-limited response without ending the session', async () => {
+  network.mockResolvedValueOnce(new Response(JSON.stringify({ code: 'ACCESS_RATE_LIMITED', error: 'Demasiadas solicitudes' }), {
+    status: 429, headers: { 'content-type': 'application/json', 'retry-after': '42' },
+  }));
+  await expect(apiRequest('/api/access/qr', { method: 'POST', body: {} })).rejects.toMatchObject({
+    status: 429, code: 'ACCESS_RATE_LIMITED', retryAfterSeconds: 42,
+  });
+  expect(invalidateAccessToken).not.toHaveBeenCalled();
+});
+
+it.each([['Wed, 21 Oct 2026 07:28:00 GMT', undefined], ['-5', undefined], ['99999', 3600], [null, undefined]])(
+  'ignores or caps an unusable Retry-After %j', async (header, expected) => {
+    network.mockResolvedValueOnce(new Response('{}', {
+      status: 429, headers: { 'content-type': 'application/json', ...(header ? { 'retry-after': header } : {}) },
+    }));
+    const error = await apiRequest('/api/access/qr').catch((caught: ApiError) => caught);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).retryAfterSeconds).toBe(expected);
+  },
+);

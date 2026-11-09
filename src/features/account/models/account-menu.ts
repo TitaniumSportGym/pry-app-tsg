@@ -94,6 +94,18 @@ const ROLE_SECTIONS: Record<UserRole, AccountMenuSection[]> = {
           route: '/memberships',
         },
         {
+          id: 'access',
+          label: 'Mi acceso QR',
+          icon: { ios: 'qrcode', android: 'qr_code_2', web: 'qr_code_2' },
+          route: '/account/access',
+        },
+        {
+          id: 'access-history',
+          label: 'Historial de entradas',
+          icon: { ios: 'clock.arrow.circlepath', android: 'history', web: 'history' },
+          route: '/account/access/history',
+        },
+        {
           id: 'payments',
           label: 'Pagos y comprobantes',
           icon: { ios: 'doc.text', android: 'receipt_long', web: 'receipt_long' },
@@ -194,6 +206,12 @@ const ROLE_SECTIONS: Record<UserRole, AccountMenuSection[]> = {
           label: 'Pagos',
           icon: { ios: 'creditcard', android: 'payments', web: 'payments' },
           route: '/admin/account/payments',
+        },
+        {
+          id: 'access-history',
+          label: 'Historial de accesos',
+          icon: { ios: 'clock.arrow.circlepath', android: 'history', web: 'history' },
+          route: '/admin/access-history',
         },
       ],
     },

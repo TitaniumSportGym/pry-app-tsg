@@ -2,6 +2,7 @@ import {
   parseMembershipPlan,
   parseMembershipPlans,
 } from '@/features/memberships/models/membership';
+import { parseActiveSubscription } from '@/features/memberships/models/subscription';
 import { apiRequest } from '@/services/apiClient';
 import { ApiError } from '@/types/auth';
 
@@ -14,6 +15,11 @@ export async function getMembershipPlans() {
   });
 
   return parseMembershipPlans(response?.plans);
+}
+
+/** Membresía vigente del usuario de la sesión; null si no tiene una activa hoy. */
+export async function getMySubscription() {
+  return parseActiveSubscription(await apiRequest<unknown>('/api/memberships/me/subscription'));
 }
 
 export async function getMembershipPlan(planId: string) {

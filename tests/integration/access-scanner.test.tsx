@@ -7,7 +7,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AdminTabsLayout from '@/app/admin/(tabs)/_layout';
 import AdminScanScreen from '@/app/admin/scan';
 import type { TabBarCenterAction } from '@/components/navigation/app-tab-bar';
+import { getAdminAccessHistory, scanAccessCode } from '@/features/access/api/access-api';
 import { AccessScannerView } from '@/features/access/views/access-scanner-view';
+import { getAdminUsers } from '@/features/admin/api/admin-api';
+import { ApiError } from '@/types/auth';
 
 jest.mock('expo-camera', () => {
   const { createElement } = jest.requireActual<typeof import('react')>('react');
@@ -24,9 +27,18 @@ jest.mock('expo-router', () => ({
 jest.mock('react-native-safe-area-context', () =>
   jest.requireActual('react-native-safe-area-context/jest/mock').default,
 );
-jest.mock('@/hooks/use-auth', () => ({
-  useAuth: () => ({ user: { email: 'admin@example.com' } }),
+// Objeto estable, como el del proveedor real: un signOut nuevo en cada render recargaría sin fin.
+jest.mock('@/hooks/use-auth', () => {
+  const auth = { user: { email: 'admin@example.com' }, signOut: async () => undefined };
+  return { useAuth: () => auth };
+});
+// Solo se simula la red: ViewModel, repositorios y caché son los reales.
+jest.mock('@/features/access/api/access-api', () => ({
+  scanAccessCode: jest.fn(),
+  getAdminAccessHistory: jest.fn(),
+  getMyAccessHistory: jest.fn(),
 }));
+jest.mock('@/features/admin/api/admin-api', () => ({ getAdminUsers: jest.fn() }));
 // Las pestañas reales dependen del navegador de Expo Router; aquí solo se dibuja la acción
 // central para comprobar que el layout del administrador la conecta con el escáner.
 jest.mock('@/components/app-tabs', () => {
@@ -63,8 +75,24 @@ const stopAnimation = jest.fn();
 const removeSubscription = jest.fn();
 let onAppStateChange: (state: AppStateStatus) => void;
 
+const MEMBER_ID = 'b2ec5cc4-2186-4f87-bcff-b2240678f907';
+const NOW = new Date();
+
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.mocked(scanAccessCode).mockReset();
+  jest.mocked(getAdminAccessHistory).mockReset().mockResolvedValue({
+    entries: [
+      { id: 'a1', userId: MEMBER_ID, scannedAt: NOW, granted: true },
+      { id: 'a2', userId: MEMBER_ID, scannedAt: NOW, granted: false },
+    ],
+    page: 1,
+    totalPages: 1,
+    total: 2,
+  });
+  jest.mocked(getAdminUsers).mockReset().mockResolvedValue([
+    { id: MEMBER_ID, email: '20230008@uthh.edu.mx', role: 'cliente', isVerified: true },
+  ]);
   requestPermission.mockReset().mockResolvedValue(granted);
   getPermission.mockReset().mockResolvedValue(granted);
   jest.mocked(useCameraPermissions).mockReturnValue([granted, requestPermission, getPermission]);
@@ -102,7 +130,7 @@ describe('AccessScannerView con su ViewModel', () => {
     expect(screen.queryByTestId('access-camera')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Encender linterna' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Permitir cámara' })).toBeNull();
-    expect(screen.queryByText('Listo para escanear')).toBeNull();
+    expect(screen.queryByText('Accesos de hoy')).toBeNull();
   });
 
   it.each([
@@ -139,7 +167,7 @@ describe('AccessScannerView con su ViewModel', () => {
     expect(screen.getByTestId('access-camera')).toHaveProp('barcodeScannerSettings', {
       barcodeTypes: ['qr'],
     });
-    expect(screen.getByText('Listo para escanear')).toBeOnTheScreen();
+    expect(screen.getByText('Accesos de hoy')).toBeOnTheScreen();
     expect(screen.getByText('Apunta al código QR del socio')).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Permitir cámara' })).toBeNull();
 
@@ -153,34 +181,85 @@ describe('AccessScannerView con su ViewModel', () => {
     expect(stopAnimation).toHaveBeenCalledTimes(1);
   });
 
-  it('ignora QR vacíos, muestra un QR válido, desactiva lecturas y permite escanear el siguiente', async () => {
+  it('resume los accesos de hoy con el historial del backend y abre el historial', async () => {
+    const user = userEvent.setup();
+    await render(<AccessScannerView />);
+
+    expect(await screen.findByText('1 socio')).toBeOnTheScreen();
+    expect(getAdminAccessHistory).toHaveBeenCalledWith(expect.objectContaining({ page: 1, limit: 100 }));
+
+    await user.press(screen.getByRole('button', { name: 'Ver historial de accesos' }));
+    expect(router.push).toHaveBeenCalledWith('/admin/access-history');
+  });
+
+  it('valida el QR con el backend, muestra el acceso permitido y permite escanear el siguiente', async () => {
+    jest.mocked(scanAccessCode).mockResolvedValue({
+      id: 'acc-1',
+      userId: MEMBER_ID,
+      scannedAt: NOW,
+      subscriptionStatus: 'active',
+    });
     const user = userEvent.setup();
     await render(<AccessScannerView />);
 
     await fireEvent(screen.getByTestId('access-camera'), 'barcodeScanned', { data: ' \n\t' });
-    expect(screen.getByText('Listo para escanear')).toBeOnTheScreen();
-    expect(screen.queryByRole('button', { name: 'Escanear siguiente' })).toBeNull();
+    expect(scanAccessCode).not.toHaveBeenCalled();
 
-    await fireEvent(screen.getByTestId('access-camera'), 'barcodeScanned', { data: '  TSG-ACC-001  ' });
+    await fireEvent(screen.getByTestId('access-camera'), 'barcodeScanned', { data: '  TOKEN-VALIDO  ' });
 
-    expect(screen.getByText('TSG-ACC-001')).toBeOnTheScreen();
-    expect(screen.getByText('Código leído')).toBeOnTheScreen();
-    expect(screen.getByText(/La validación del acceso estará disponible pronto/)).toBeOnTheScreen();
-    expect(screen.queryByText('Apunta al código QR del socio')).toBeNull();
+    expect(await screen.findByText('ACCESO PERMITIDO')).toBeOnTheScreen();
+    expect(scanAccessCode).toHaveBeenCalledWith('TOKEN-VALIDO');
+    expect(screen.getByText('Socio 20230008')).toBeOnTheScreen();
+    expect(screen.getByText('20230008@uthh.edu.mx')).toBeOnTheScreen();
+    expect(screen.getByText('Activa')).toBeOnTheScreen();
     expect(screen.getByTestId('access-camera')).not.toHaveProp('onBarcodeScanned');
-    expect(stopAnimation).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('TOKEN-VALIDO')).toBeNull();
 
-    await fireEvent(screen.getByTestId('access-camera'), 'barcodeScanned', { data: 'TSG-ACC-002' });
-    expect(screen.queryByText('TSG-ACC-002')).toBeNull();
-    expect(screen.getByText('TSG-ACC-001')).toBeOnTheScreen();
+    await fireEvent(screen.getByTestId('access-camera'), 'barcodeScanned', { data: 'OTRO' });
+    expect(scanAccessCode).toHaveBeenCalledTimes(1);
 
     await user.press(screen.getByRole('button', { name: 'Escanear siguiente' }));
 
-    expect(screen.queryByText('TSG-ACC-001')).toBeNull();
-    expect(screen.getByText('Listo para escanear')).toBeOnTheScreen();
+    expect(screen.queryByText('ACCESO PERMITIDO')).toBeNull();
     expect(screen.getByTestId('access-camera')).toHaveProp('onBarcodeScanned', expect.any(Function));
-    await fireEvent(screen.getByTestId('access-camera'), 'barcodeScanned', { data: 'TSG-ACC-002' });
-    expect(screen.getByText('TSG-ACC-002')).toBeOnTheScreen();
+  });
+
+  it('muestra el acceso denegado con el motivo que envía el backend', async () => {
+    jest
+      .mocked(scanAccessCode)
+      .mockRejectedValue(
+        new ApiError('Membresía vencida', 403, undefined, 'MEMBERSHIP_REQUIRED'),
+      );
+    const user = userEvent.setup();
+    await render(<AccessScannerView />);
+
+    await fireEvent(screen.getByTestId('access-camera'), 'barcodeScanned', { data: 'TOKEN-VENCIDO' });
+
+    expect(await screen.findByText('ACCESO DENEGADO')).toBeOnTheScreen();
+    expect(screen.getByRole('alert')).toHaveTextContent('Membresía no vigente');
+    expect(screen.queryByText('ACCESO PERMITIDO')).toBeNull();
+
+    await user.press(screen.getByRole('button', { name: 'Escanear de nuevo' }));
+    expect(screen.queryByText('ACCESO DENEGADO')).toBeNull();
+  });
+
+  it('sin conexión no concede la entrada y reintenta el mismo código', async () => {
+    jest
+      .mocked(scanAccessCode)
+      .mockRejectedValueOnce(new TypeError('Network request failed'))
+      .mockResolvedValueOnce({ id: 'acc-2', userId: MEMBER_ID, scannedAt: NOW, subscriptionStatus: 'active' });
+    const user = userEvent.setup();
+    await render(<AccessScannerView />);
+
+    await fireEvent(screen.getByTestId('access-camera'), 'barcodeScanned', { data: 'TOKEN-RED' });
+
+    expect(await screen.findByText('SIN CONFIRMAR')).toBeOnTheScreen();
+    expect(screen.queryByText('ACCESO PERMITIDO')).toBeNull();
+
+    await user.press(screen.getByRole('button', { name: 'Reintentar' }));
+
+    expect(await screen.findByText('ACCESO PERMITIDO')).toBeOnTheScreen();
+    expect(scanAccessCode).toHaveBeenNthCalledWith(2, 'TOKEN-RED');
   });
 
   it('conecta la linterna con la cámara y actualiza la etiqueta accesible', async () => {
@@ -263,7 +342,7 @@ describe('AccessScannerView con su ViewModel', () => {
     await render(<AccessScannerView />);
 
     expect(screen.getByTestId('access-camera')).toBeOnTheScreen();
-    expect(screen.getByText('Listo para escanear')).toBeOnTheScreen();
+    expect(screen.getByText('Accesos de hoy')).toBeOnTheScreen();
     expect(startAnimation).toHaveBeenCalledTimes(1);
   });
 });
