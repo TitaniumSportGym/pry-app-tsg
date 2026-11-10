@@ -1,5 +1,10 @@
 # Decisión de transporte y Certificate Pinning
 
+Nota de laboratorio: los perfiles habituales conservan la decisión de este
+documento. La rama `feature/certificate-pinning-lab` añade variantes Android
+aisladas; consulta [su guía](./certificate-pinning-lab.md) para el pin temporal,
+las barreras de validación y las pruebas pendientes sobre APK reales.
+
 La implementación conserva validación TLS estándar y **no implementa Certificate
 Pinning**. HTTPS con `fetch` no demuestra pinning. No se agregan librerías nativas
 ni validadores permisivos, trust-all, CA de usuario o excepciones globales Debug.

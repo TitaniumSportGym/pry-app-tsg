@@ -49,6 +49,38 @@
         "EXPO_PUBLIC_ARCO_BACKEND_ENABLED": "true"
       }
     },
+    "pinning-lab-valid": {
+      "distribution": "internal",
+      "developmentClient": false,
+      "autoIncrement": false,
+      "environment": "development",
+      "env": {
+        "APP_VARIANT": "pinning-lab-valid",
+        "TSG_PINNING_LAB_PROFILE": "pinning-lab-valid",
+        "EXPO_PUBLIC_API_URL": "https://server-titanium.onrender.com",
+        "EXPO_PUBLIC_ARCO_BACKEND_ENABLED": "false"
+      },
+      "android": {
+        "buildType": "apk",
+        "buildArtifactPaths": ["android/app/build/outputs/mapping/release/**"]
+      }
+    },
+    "pinning-lab-invalid": {
+      "distribution": "internal",
+      "developmentClient": false,
+      "autoIncrement": false,
+      "environment": "development",
+      "env": {
+        "APP_VARIANT": "pinning-lab-invalid",
+        "TSG_PINNING_LAB_PROFILE": "pinning-lab-invalid",
+        "EXPO_PUBLIC_API_URL": "https://server-titanium.onrender.com",
+        "EXPO_PUBLIC_ARCO_BACKEND_ENABLED": "false"
+      },
+      "android": {
+        "buildType": "apk",
+        "buildArtifactPaths": ["android/app/build/outputs/mapping/release/**"]
+      }
+    },
     "arco-release": {
       "distribution": "internal",
       "developmentClient": false,

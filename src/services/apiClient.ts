@@ -12,6 +12,9 @@ export interface ApiRequestOptions<TBody = unknown> {
   /** Bind session-ending operations to the credential captured when they began. */
   expectedAccessToken?: string;
   headers?: Record<string, string>;
+  /** Explicit opt-in for anonymous diagnostics; existing requests keep defaults. */
+  credentials?: RequestCredentials;
+  signal?: AbortSignal;
   onResponse?: (metadata: { status: number; headers: Headers }) => void;
 }
 
@@ -198,6 +201,8 @@ export async function apiRequest<T>(
     headers: requestHeaders,
     body: requestBody,
     redirect: 'error',
+    ...(options.credentials === undefined ? {} : { credentials: options.credentials }),
+    ...(options.signal === undefined ? {} : { signal: options.signal }),
   });
 
   // Some native fetch implementations do not enforce redirect: 'error'. This

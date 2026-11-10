@@ -12,6 +12,7 @@ import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { AppSplashScreen } from '@/components/splash/app-splash-screen';
 import { getAccessibleAreas } from '@/features/authorization/models/user-role';
+import { PinningLabPanel } from '@/features/pinning-lab/views/pinning-lab-panel';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthProvider } from '@/providers/auth-provider';
 import { CartProvider } from '@/providers/cart-provider';
@@ -70,6 +71,7 @@ function RootNavigator() {
         </Stack>
       ) : null}
       <AppSplashScreen isReady={sessionReady} />
+      <PinningLabPanel />
     </View>
   );
 }
