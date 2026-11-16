@@ -29,7 +29,7 @@ jobs:
         run: npm ci
 
       - name: Verificar generación de Android Release con R8
-        run: node scripts/verify-android-release.cjs
+        run: node scripts/verify-android-release.cjs --profile preview
 
       - name: Conservar evidencia de configuración R8
         if: always()

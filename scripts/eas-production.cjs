@@ -3,12 +3,13 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { spawnSync } = require('node:child_process');
-const API_ORIGIN = 'https://server-titanium.onrender.com';
+const { API_ORIGIN, getSettings } = require('../config/alpha-pinning.cjs');
 const PROJECT_ID = 'e2d585a9-0d83-4bcb-ac53-d1a240ed6e74';
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 
 function validateConfig(eas = read('eas.json'), app = read('app.json').expo, manifest = read('package.json')) {
+  getSettings();
   const build = eas.build?.production;
   assert.equal(app.name, 'Titanium Sport Gym');
   assert.equal(app.android?.package, 'com.titaniumsportgym.app');
@@ -64,6 +65,12 @@ function buildIdentity(build) {
   assert.ok(typeof account === 'string' && /^[\w-]+$/.test(account) && typeof slug === 'string' && /^[\w-]+$/.test(slug), 'Identidad EAS inválida.');
   return { id: build.id, buildUrl: `https://expo.dev/accounts/${account}/projects/${slug}/builds/${build.id}` };
 }
+function validateRemoteVersion(value) {
+  assert.match(String(value?.versionCode || ''), /^[1-9][0-9]*$/, 'Falta el versionCode remoto verificable.');
+  const current = Number(value.versionCode);
+  assert.ok(Number.isSafeInteger(current) && current >= 4, 'El contador EAS no puede quedar detrás del último Alpha (4).');
+  return { currentVersionCode: current, minimumNextVersionCode: current + 1 };
+}
 function inspectBuild(build, sha = process.env.GITHUB_SHA) {
   const identity = buildIdentity(build);
   assert.equal(build.platform, 'ANDROID'); assert.equal(build.buildProfile, 'production');
@@ -71,6 +78,7 @@ function inspectBuild(build, sha = process.env.GITHUB_SHA) {
   if (sha) assert.equal(build.gitCommitHash, sha, 'La compilación debe usar el commit validado.');
   assert.equal(build.status, 'FINISHED', 'La compilación remota no terminó correctamente.');
   assert.match(String(build.appBuildVersion || ''), /^[1-9][0-9]*$/, 'Falta el versionCode remoto.');
+  assert.ok(Number(build.appBuildVersion) > 4, 'El AAB Alpha debe tener versionCode superior a 4.');
   let archive;
   try { archive = new URL(build.artifacts?.applicationArchiveUrl || build.artifacts?.buildUrl); }
   catch { throw new Error('Falta el artefacto AAB.'); }
@@ -90,6 +98,7 @@ function recordIdentity(build) {
 }
 async function main(command, filename, logFile) {
   validateConfig();
+  if (command === 'version') return console.log(JSON.stringify(validateRemoteVersion(read(filename))));
   if (command === 'validate') return console.log('Configuración de producción AAB validada; no se ejecutó EAS.');
   if (command === 'backend') {
     await verifyBackend(async (url, options) => {
@@ -122,7 +131,7 @@ async function main(command, filename, logFile) {
     `\nAAB de producción: [Ver compilación](${safe.buildUrl}) · ${safe.remoteStatus} · versionCode ${safe.versionCode}.\n\nNo se envió a Google Play.\n`);
   console.log(JSON.stringify(safe));
 }
-module.exports = { validateConfig, verifyBackend, inspectBuild, buildIdentity };
+module.exports = { validateConfig, verifyBackend, inspectBuild, buildIdentity, validateRemoteVersion };
 if (require.main === module) main(...process.argv.slice(2)).catch(() => {
   // Assertions may include untrusted URLs/data. Keep diagnostics bounded and
   // public; the sanitized build link/status are emitted before validation.

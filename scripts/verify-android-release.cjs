@@ -6,13 +6,23 @@ const { spawnSync } = require('node:child_process');
 const { createHash } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { PROFILES, getSettings, configureApp, readConfig } = require('../config/alpha-pinning.cjs');
+const { policiesForAlpha } = require('../plugins/with-network-security.cjs');
+const { certificatePinnerSource } = require('../plugins/alpha-certificate-pinner.cjs');
 
 const projectRoot = path.resolve(path.dirname(module.filename), '..');
 const readJson = (file) => JSON.parse(fs.readFileSync(path.join(projectRoot, file), 'utf8'));
 
-function verifyAndroidRelease() {
+function verifyAndroidRelease(profileName = 'production') {
   const app = readJson('app.json');
   const eas = readJson('eas.json');
+  assert.ok(PROFILES.includes(profileName));
+  const settings = readConfig();
+  const environment = { ...process.env, CI: '1', EXPO_OFFLINE: '1', EXPO_NO_TELEMETRY: '1', EXPO_NO_DOTENV: '1',
+    ...eas.build[profileName].env, EAS_BUILD_PROFILE: profileName };
+  configureApp(app.expo, environment, settings, eas);
+  const active = getSettings(settings);
+  const expectedPolicies = policiesForAlpha(settings);
   const plugin = app.expo.plugins.find((entry) => Array.isArray(entry) && entry[0] === 'expo-build-properties');
   assert.equal(plugin?.[1]?.android?.enableMinifyInReleaseBuilds, true);
   assert.equal(plugin?.[1]?.android?.enableShrinkResourcesInReleaseBuilds, true);
@@ -27,14 +37,14 @@ function verifyAndroidRelease() {
   const arco = eas.build['arco-release'];
   assert.equal(arco.extends, undefined);
   assert.equal(arco.distribution, 'internal');
-  assert.equal(arco.env.EXPO_PUBLIC_API_URL, 'https://server-titanium.onrender.com');
+  assert.equal(arco.env.EXPO_PUBLIC_API_URL, settings.apiOrigin);
   assert.equal(arco.env.EXPO_PUBLIC_ARCO_BACKEND_ENABLED, 'true');
   assert.notEqual(arco.environment, 'production');
 
   const stagingRoot = path.join(projectRoot, '.expo');
   fs.mkdirSync(stagingRoot, { recursive: true });
   const snapshot = fs.mkdtempSync(path.join(stagingRoot, 'android-release-'));
-  for (const file of ['app.json', 'package.json', 'assets', 'plugins']) {
+  for (const file of ['app.json', 'app.config.js', 'eas.json', 'package.json', 'assets', 'plugins', 'config']) {
     fs.cpSync(path.join(projectRoot, file), path.join(snapshot, file), { recursive: true });
   }
   // Prebuild only needs the Router directory, not a second copy of the app or its tests.
@@ -51,13 +61,7 @@ function verifyAndroidRelease() {
       cwd: snapshot,
       encoding: 'utf8',
       timeout: 120000,
-      env: {
-        ...process.env,
-        CI: '1',
-        EXPO_OFFLINE: '1',
-        EXPO_NO_TELEMETRY: '1',
-        EXPO_NO_DOTENV: '1',
-      },
+      env: environment,
     });
   } finally {
     // Jest indexes package names even under .expo; the temporary manifest must not remain.
@@ -89,21 +93,41 @@ function verifyAndroidRelease() {
   for (const variant of ['main', 'debug']) {
     assert.match(policy(variant), /base-config cleartextTrafficPermitted="false"/);
     assert.match(policy(variant), /certificates src="system"/);
-    assert.doesNotMatch(policy(variant), /src="user"|debug-overrides|pin-set/);
+    assert.doesNotMatch(policy(variant), /src="user"|debug-overrides|overridePins|expiration=/);
+    assert.equal(policy(variant), expectedPolicies[variant], 'El XML generado debe coincidir exactamente con la política revisada.');
   }
   assert.doesNotMatch(policy('main'), /cleartextTrafficPermitted="true"/);
+  for (const variant of ['main', 'debug']) {
+    assert.deepEqual([...policy(variant).matchAll(/<pin digest="SHA-256">(.*?)<\/pin>/g)].map(match => match[1]), active.pins);
+    assert.ok(policy(variant).includes(`<domain includeSubdomains="false">${active.host}</domain>`));
+  }
   assert.deepEqual([...policy('debug').matchAll(/<domain>(.*?)<\/domain>/g)].map(match => match[1]), ['localhost', '127.0.0.1', '10.0.2.2']);
   const declaredPermissions = [...manifest.matchAll(/<uses-permission\b[^>]*>/g)]
     .map(match => match[0]).filter(entry => !/tools:node="remove"/.test(entry))
     .map(entry => entry.match(/android:name="([^"]+)"/)[1]).sort();
   assert.deepEqual(declaredPermissions, ['android.permission.CAMERA', 'android.permission.INTERNET']);
+  for (const permission of app.expo.android.blockedPermissions) {
+    assert.ok(manifest.includes(`android:name="${permission}" tools:node="remove"`), `Conservar bloqueo de ${permission}.`);
+  }
+  const mainApplication = fs.readFileSync(path.join(nativeRoot, 'app', 'src', 'main', 'java', ...app.expo.android.package.split('.'), 'MainApplication.kt'), 'utf8');
+  assert.doesNotMatch(mainApplication, /TitaniumPinningLab|setOkHttpClientFactory|sslSocketFactory|hostnameVerifier/);
+  const installation = 'TitaniumCertificatePinning.install(this)';
+  assert.equal(mainApplication.split(installation).length - 1, 1);
+  assert.ok(mainApplication.indexOf(installation) < mainApplication.indexOf('loadReactNative(this)'));
+  const kotlin = fs.readFileSync(path.join(nativeRoot, 'app', 'src', 'main', 'java', ...app.expo.android.package.split('.'), 'TitaniumCertificatePinning.kt'), 'utf8');
+  assert.equal(kotlin, certificatePinnerSource(settings));
+  assert.doesNotMatch(kotlin, /sslSocketFactory|hostnameVerifier|TrustManager|TitaniumPinningLab/);
+  const debugManifest = fs.readFileSync(path.join(nativeRoot, 'app', 'src', 'debug', 'AndroidManifest.xml'), 'utf8');
+  assert.doesNotMatch(debugManifest, /networkSecurityConfig=/);
 
   const evidence = {
     verifiedAt: new Date().toISOString(),
     expo: require('expo/package.json').version,
     reactNative: require('react-native/package.json').version,
     buildProperties: require('expo-build-properties/package.json').version,
-    sourceHashes: Object.fromEntries(['app.json', 'eas.json', 'package.json', 'package-lock.json'].map((file) => [
+    sourceHashes: Object.fromEntries(['app.json', 'app.config.js', 'eas.json', 'package.json', 'package-lock.json',
+      'config/alpha-pinning-public-chain.json', 'config/alpha-pinning.cjs', 'plugins/with-network-security.cjs',
+      'plugins/alpha-certificate-pinner.cjs'].map((file) => [
       file, createHash('sha256').update(fs.readFileSync(path.join(projectRoot, file))).digest('hex'),
     ])),
     snapshot: path.relative(projectRoot, snapshot),
@@ -113,7 +137,14 @@ function verifyAndroidRelease() {
     shrinkResources: true,
     releaseCleartextBlocked: true,
     systemCertificateAuthoritiesOnly: true,
-    certificatePinning: false,
+    profile: profileName,
+    certificatePinning: Boolean(active),
+    mode: settings.mode,
+    okHttpCertificatePinnerGenerated: true,
+    pinningHostname: active.host,
+    spkiPins: active.pins,
+    operationalBackup: null,
+    nativeRuntimePinningVerified: false,
     prebuildPermissions: declaredPermissions,
     mergedBinaryPermissionsVerified: false,
     proguardPreset: 'proguard-android-optimize.txt',
@@ -127,7 +158,9 @@ function verifyAndroidRelease() {
 }
 
 try {
-  verifyAndroidRelease();
+  const args = process.argv.slice(2);
+  assert.ok(args.length === 0 || (args.length === 2 && args[0] === '--profile'), 'Usar --profile <perfil>.');
+  verifyAndroidRelease(args[1]);
 } catch (error) {
   console.error(error.message);
   process.exitCode = 1;
