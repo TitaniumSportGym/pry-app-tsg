@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { SymbolView } from 'expo-symbols';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui/app-button';
@@ -90,14 +90,14 @@ export function CartView() {
             <Text style={styles.totalAmount}>{viewModel.total}</Text>
           </View>
           <View style={styles.payColumn}>
-            <View
-              accessible
-              accessibilityLabel="Pagar, próximamente"
-              accessibilityState={{ disabled: true }}
-              style={styles.payButton}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Continuar a pagar productos"
+              onPress={viewModel.openCheckout}
+              style={({ pressed }) => [styles.payButton, pressed && { opacity: 0.82 }]}
             >
               <Text style={styles.payText}>PAGAR</Text>
-            </View>
+            </Pressable>
           </View>
         </View>
       ) : null}
@@ -188,7 +188,6 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 18,
     backgroundColor: AppColors.brand.primary,
-    opacity: 0.56,
     alignItems: 'center',
     justifyContent: 'center',
   },
