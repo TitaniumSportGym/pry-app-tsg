@@ -8,7 +8,7 @@ const { createHash } = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { Buffer } = require('node:buffer');
 
-const API_ORIGIN = 'https://server-titanium.onrender.com';
+const { API_ORIGIN } = require('../config/alpha-pinning.cjs');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const BUILD_URL = /^https:\/\/expo\.dev\/accounts\/[\w%-]+\/projects\/[\w%-]+\/builds\/[0-9a-f-]{36}$/i;
 const json = (filename) => JSON.parse(fs.readFileSync(filename, 'utf8'));

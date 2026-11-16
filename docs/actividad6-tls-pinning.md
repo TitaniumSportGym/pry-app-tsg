@@ -1,5 +1,17 @@
 # Decisión de transporte y Certificate Pinning
 
+**Actualización Alpha:** la autorización académica posterior permite fijar
+temporalmente el SPKI leaf actual de Render sin infraestructura propia. La rama
+`feature/certificate-pinning-alpha` activa un `CertificatePinner` de OkHttp en el
+cliente React Native y Network Security Configuration con el mismo pin verificado.
+Ver [implementación y evidencia Alpha](certificate-pinning-alpha.md).
+La compilación y prueba del binario final se realizarán después de la revisión.
+
+## Decisión inicial conservada como antecedente
+
+El texto siguiente documenta la decisión anterior a la autorización académica;
+no describe la configuración activa de la rama Alpha.
+
 La implementación conserva validación TLS estándar y **no implementa Certificate
 Pinning**. HTTPS con `fetch` no demuestra pinning. No se agregan librerías nativas
 ni validadores permisivos, trust-all, CA de usuario o excepciones globales Debug.

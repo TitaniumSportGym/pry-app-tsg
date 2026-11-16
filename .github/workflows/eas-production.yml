@@ -27,6 +27,8 @@ jobs:
         run: npm ci
       - name: Validar perfil production y proyecto EAS
         run: node scripts/eas-production.cjs validate
+      - name: Verificar TLS público y pin SPKI actual de Alpha
+        run: node scripts/verify-alpha-pinning.cjs --check
       - name: Compatibilidad de Expo SDK y dependencias
         run: |
           npx expo install --check
@@ -65,6 +67,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node scripts/eas-production.cjs validate
+      - name: Revalidar pin Alpha inmediatamente antes de solicitar el AAB
+        run: node scripts/verify-alpha-pinning.cjs --check
       - name: Revalidar backend y esquema antes de compilar
         run: node scripts/eas-production.cjs backend
       - name: Comprobar acceso mediante GitHub Secret
@@ -80,6 +84,12 @@ jobs:
           eas-version: latest
           packager: npm
           token: ${{ secrets.EXPO_TOKEN }}
+      - name: Comprobar contador remoto posterior al último Alpha
+        run: |
+          mkdir -p coverage/eas-production
+          npx eas-cli@latest build:version:get --platform android --profile production --non-interactive --json \
+            > coverage/eas-production/version-before.json
+          node scripts/eas-production.cjs version coverage/eas-production/version-before.json
       - name: Generar AAB firmado con credenciales existentes
         id: compilar
         env:
