@@ -35,6 +35,7 @@ export function useProductCheckout() {
   const [quoting, setQuoting] = useState(false);
   const [paying, setPaying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [expiredToken, setExpiredToken] = useState<string | null>(null);
   const lock = useRef(false);
 
   useEffect(() => {
@@ -59,7 +60,15 @@ export function useProductCheckout() {
   }, [method, recipientName, phone, selectedAddressId, address]);
   const signature = JSON.stringify({ items, fulfillment });
   const quote = quotation?.signature === signature ? quotation.quote : null;
-  const validQuote = Boolean(quote && Date.parse(quote.expiresAt) > Date.now());
+  useEffect(() => {
+    if (!quote) return;
+    const timeout = setTimeout(
+      () => setExpiredToken(quote.quoteToken),
+      Math.max(0, Date.parse(quote.expiresAt) - Date.now()),
+    );
+    return () => clearTimeout(timeout);
+  }, [quote]);
+  const validQuote = Boolean(quote && expiredToken !== quote.quoteToken);
 
   function editAddress(field: keyof DeliveryAddress, value: string) {
     setAddress((current) => ({ ...current, [field]: value }));
@@ -84,7 +93,7 @@ export function useProductCheckout() {
   }
 
   async function pay() {
-    if (lock.current || !cart.isAvailable || !quote || !validQuote) {
+    if (lock.current || !cart.isAvailable || !quote || !validQuote || Date.parse(quote.expiresAt) <= Date.now()) {
       setErrorMessage('Consulta una cotización vigente antes de pagar.');
       return;
     }
