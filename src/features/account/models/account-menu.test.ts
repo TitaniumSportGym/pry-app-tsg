@@ -29,6 +29,7 @@ describe('menú de la cuenta', () => {
       '/account/access',
       '/account/access/history',
       '/account/payments',
+      '/account/orders',
       '/account/routines',
       '/account/privacy',
       '/account/terms',
