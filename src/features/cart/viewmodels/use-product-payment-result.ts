@@ -36,7 +36,7 @@ export function useProductPaymentResult(orderId: string | undefined) {
           // Only clear when the present cart still matches the paid order exactly.
           // Never discard products a customer added during the browser round-trip.
           try {
-            const response = await apiRequest<{ order?: { items?: Array<{ itemType: string; productId: number; quantity: number }> } }>(
+            const response = await apiRequest<{ order?: { items?: { itemType: string; productId: number; quantity: number }[] } }>(
               '/api/orders/' + encodeURIComponent(validOrder),
             );
             if (cancelled) return;
