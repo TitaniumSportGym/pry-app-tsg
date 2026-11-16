@@ -4,7 +4,7 @@ import { canIncrease, getCartCount, getCartTotal } from '@/features/cart/models/
 import { formatProductPrice } from '@/features/store/models/product';
 import { useCart } from '@/hooks/use-cart';
 
-/** Screen 12 · Carrito. Only signed-in users can open it; payment (screen 13) does not exist yet. */
+/** Screen 12 · Carrito. Payment now uses the backend's signed product quote. */
 export function useCartViewModel() {
   const cart = useCart();
   const count = getCartCount(cart.items);
@@ -34,6 +34,9 @@ export function useCartViewModel() {
       if (item) cart.updateQuantity(productId, item.quantity - 1);
     },
     remove: cart.remove,
+    openCheckout() {
+      if (cart.isAvailable && cart.items.length > 0) router.push('/checkout/products');
+    },
     openLogin() {
       router.push('/login');
     },
