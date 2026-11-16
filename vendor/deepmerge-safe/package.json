@@ -1,0 +1,9 @@
+{
+  "name": "@titaniumsportgym/deepmerge-safe",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local deepmerge 4.3.1 API-compatible security replacement for Jest configuration",
+  "main": "index.cjs",
+  "license": "MIT",
+  "files": ["index.cjs", "LICENSE", "README.md"]
+}
