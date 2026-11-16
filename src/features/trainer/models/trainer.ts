@@ -23,6 +23,8 @@ export interface RoutineExercise {
   order: number;
   videoUrl: string | null;
   hasVideo: boolean;
+  /** youtube (enlace), upload (subido a Cloudinary) o none. */
+  videoType?: 'youtube' | 'upload' | 'none' | (string & {});
 }
 
 export interface TrainerRoutine {
@@ -38,6 +40,8 @@ export interface TrainerRoutine {
   imageUrl: string | null;
   status: string;
   exercises: RoutineExercise[];
+  /** Última edición (ISO), para ordenar y mostrar "Editada hoy". */
+  updatedAt?: string | null;
 }
 
 export interface TrainerRoutinesResponse {
@@ -56,6 +60,9 @@ export interface TrainerProfile {
   certifications: string;
   experienceYears: number;
   bio: string;
+  focus?: string;
+  /** URL https de Cloudinary; vacía si no hay foto. */
+  photoUrl?: string;
 }
 
 export interface TrainerProfileResponse {

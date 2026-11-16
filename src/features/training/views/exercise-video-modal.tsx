@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SymbolView } from 'expo-symbols';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useState } from 'react';
-import { ActivityIndicator, Modal, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, type WebViewNavigation } from 'react-native-webview';
 
@@ -32,7 +32,10 @@ const EMBED_BASE_URL = (() => {
   }
 })();
 
-/** Plays an exercise video inside the app, over the routine detail. */
+/**
+ * Ventana emergente con el video del ejercicio: la rutina sigue visible detrás, oscurecida.
+ * Se cierra con la X, tocando fuera de la ventana o con el botón "atrás" de Android.
+ */
 export function ExerciseVideoModal({
   activeVideo,
   onClose,
@@ -40,36 +43,44 @@ export function ExerciseVideoModal({
 }: ExerciseVideoModalProps) {
   return (
     <Modal
-      animationType="slide"
-      presentationStyle="fullScreen"
+      animationType="fade"
+      statusBarTranslucent
+      transparent
       visible={activeVideo !== null}
       onRequestClose={onClose}>
-      <SafeAreaView style={styles.screen}>
+      <SafeAreaView style={styles.scrim}>
         <StatusBar style="light" />
-        <View style={styles.header}>
-          <Text accessibilityRole="header" numberOfLines={2} style={styles.title}>
-            {activeVideo?.title ?? ''}
-          </Text>
-          <IconButton
-            color={AppColors.neutral.white}
-            icon={{ ios: 'xmark', android: 'close', web: 'close' }}
-            label="Cerrar video"
-            style={styles.closeButton}
-            onPress={onClose}
-          />
-        </View>
-        <View style={styles.player}>
-          {activeVideo?.video.kind === 'youtube' ? (
-            <YouTubePlayer
-              videoId={activeVideo.video.videoId}
-              onOpenExternally={() => onOpenExternally(activeVideo.video.url)}
+        <Pressable accessible={false} style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View accessibilityViewIsModal style={styles.window}>
+          <View style={styles.header}>
+            <View style={styles.badge}>
+              <SymbolView name={{ ios: 'play.fill', android: 'play_arrow', web: 'play_arrow' }} size={14} tintColor={AppColors.neutral.white} />
+            </View>
+            <Text accessibilityRole="header" numberOfLines={2} style={styles.title}>
+              {activeVideo?.title ?? ''}
+            </Text>
+            <IconButton
+              color={AppColors.neutral.white}
+              icon={{ ios: 'xmark', android: 'close', web: 'close' }}
+              label="Cerrar video"
+              style={styles.closeButton}
+              onPress={onClose}
             />
-          ) : activeVideo?.video.kind === 'file' ? (
-            <FilePlayer
-              url={activeVideo.video.url}
-              onOpenExternally={() => onOpenExternally(activeVideo.video.url)}
-            />
-          ) : null}
+          </View>
+          <View style={styles.player}>
+            {activeVideo?.video.kind === 'youtube' ? (
+              <YouTubePlayer
+                videoId={activeVideo.video.videoId}
+                onOpenExternally={() => onOpenExternally(activeVideo.video.url)}
+              />
+            ) : activeVideo?.video.kind === 'file' ? (
+              <FilePlayer
+                url={activeVideo.video.url}
+                onOpenExternally={() => onOpenExternally(activeVideo.video.url)}
+              />
+            ) : null}
+          </View>
+          <Text style={styles.hint}>Toca fuera del video para volver a la rutina.</Text>
         </View>
       </SafeAreaView>
     </Modal>
@@ -159,27 +170,58 @@ function PlaybackError({ onOpenExternally }: { onOpenExternally: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: AppColors.surface.dark },
+  scrim: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: AppColors.overlay.scrim,
+    paddingHorizontal: 16,
+  },
+  window: {
+    width: '100%',
+    maxWidth: 560,
+    overflow: 'hidden',
+    borderRadius: 24,
+    backgroundColor: AppColors.surface.dark,
+    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.35)',
+  },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: AppSpacing.three,
-    paddingHorizontal: 20,
-    paddingVertical: AppSpacing.three,
+    gap: AppSpacing.two,
+    paddingLeft: 16,
+    paddingRight: 6,
+    paddingVertical: 6,
+  },
+  badge: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: AppColors.brand.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     flex: 1,
     color: AppColors.neutral.white,
     fontFamily: AppFonts.button,
-    fontSize: 17,
-    lineHeight: 24,
+    fontSize: 16,
+    lineHeight: 22,
   },
-  closeButton: { marginRight: -10 },
+  closeButton: { borderRadius: 22 },
   player: {
     width: '100%',
     aspectRatio: 16 / 9,
-    marginTop: AppSpacing.five,
     backgroundColor: '#000000',
+  },
+  hint: {
+    color: AppColors.neutral.mutedOnDark,
+    fontFamily: AppFonts.body,
+    fontSize: AppFontSizes.caption,
+    lineHeight: 16,
+    textAlign: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   webView: { flex: 1, backgroundColor: '#000000' },
   fill: { flex: 1 },

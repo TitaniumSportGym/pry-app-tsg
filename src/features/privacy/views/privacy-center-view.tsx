@@ -1,15 +1,17 @@
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 import { AppSectionScreen } from '@/components/layout/app-section-screen';
 import { AppButton } from '@/components/ui/app-button';
 import { AppInput } from '@/components/ui/app-input';
 import { ErrorState, LoadingState } from '@/components/ui/screen-state';
+import { DataRow, SectionCard } from '@/components/ui/section-card';
 import { isArcoBackendEnabled } from '@/features/privacy/models/arco-config';
 import { ArcoCenterView } from '@/features/privacy/views/arco-center-view';
+import { PRIVACY_ICONS } from '@/features/privacy/views/privacy-icons';
 import { usePrivacyCenterViewModel } from '@/features/privacy/viewmodels/use-privacy-center-view-model';
 import { useAuth } from '@/hooks/use-auth';
-import { AppColors, AppFonts, AppFontSizes, AppSpacing } from '@/theme/tokens';
+import { AppColors, AppFonts, AppFontSizes } from '@/theme/tokens';
 
 export function PrivacyCenterView() {
   const { status, user, role } = useAuth();
@@ -46,88 +48,72 @@ function AuthenticatedPrivacyCenter() {
       ) : null}
       {!vm.isLoading && !vm.errorMessage ? (
         <>
-          <View style={styles.card}>
-            <Text accessibilityRole="header" style={styles.title}>Acceso a tus datos</Text>
-            <Text style={styles.paragraph}>
-              Estos datos fueron consultados en tu cuenta. Las membresías, pagos y rutinas se consultan
-              en sus secciones habituales; esta lista no es una copia de todo tu expediente.
-            </Text>
-            {vm.rows.map((row) => <DataRow key={row.label} {...row} />)}
+          <SectionCard
+            icon={PRIVACY_ICONS.access}
+            title="Acceso a tus datos"
+            description="Estos datos fueron consultados en tu cuenta. Las membresías, pagos y rutinas se consultan en sus secciones habituales; esta lista no es una copia de todo tu expediente.">
+            {vm.rows.map((row) => <DataRow key={row.label} label={row.label} value={row.value} />)}
             {vm.trainer ? (
               <>
                 <DataRow label="Nombre completo" value={vm.trainer.fullName || 'No registrado'} />
                 <DataRow label="Teléfono" value={vm.trainer.phone || 'No registrado'} />
               </>
             ) : null}
-          </View>
+          </SectionCard>
 
-          <View style={styles.card}>
-            <Text accessibilityRole="header" style={styles.title}>Rectificación</Text>
+          <SectionCard
+            icon={PRIVACY_ICONS.edit}
+            title="Rectificación"
+            description={
+              vm.trainer
+                ? 'Puedes corregir tu nombre y teléfono de entrenador. Tu correo y rol no se cambian aquí.'
+                : 'La edición de tus datos de identificación aún no está disponible en la app. Puedes solicitar su rectificación al responsable mediante el canal ARCO del aviso.'
+            }>
             {vm.trainer ? (
-              <>
-                <Text style={styles.paragraph}>
-                  Puedes corregir tu nombre y teléfono de entrenador. Tu correo y rol no se cambian aquí.
-                </Text>
-                {vm.draft ? (
-                  <>
-                    <AppInput
-                      accessibilityLabel="Nombre completo"
-                      label="Nombre completo (opcional)"
-                      leftIcon={{ ios: 'person', android: 'person', web: 'person' }}
-                      value={vm.draft.fullName}
-                      editable={!vm.isSaving}
-                      maxLength={160}
-                      error={vm.fieldErrors.fullName}
-                      onChangeText={(value) => vm.setField('fullName', value)}
-                    />
-                    <AppInput
-                      accessibilityLabel="Teléfono"
-                      label="Teléfono (opcional)"
-                      leftIcon={{ ios: 'phone', android: 'phone', web: 'phone' }}
-                      keyboardType="phone-pad"
-                      value={vm.draft.phone}
-                      editable={!vm.isSaving}
-                      maxLength={30}
-                      error={vm.fieldErrors.phone}
-                      onChangeText={(value) => vm.setField('phone', value)}
-                    />
-                    <AppButton
-                      accessibilityLabel="Guardar cambios"
-                      title="Guardar cambios"
-                      loading={vm.isSaving}
-                      onPress={() => void vm.save()}
-                    />
-                    <AppButton title="Cancelar edición" variant="outline" disabled={vm.isSaving} onPress={vm.cancelEdit} />
-                  </>
-                ) : <AppButton title="Editar nombre y teléfono" variant="outline" onPress={vm.beginEdit} />}
-              </>
-            ) : (
-              <Text style={styles.paragraph}>
-                La edición de tus datos de identificación aún no está disponible en la app. Puedes
-                solicitar su rectificación al responsable mediante el canal ARCO del aviso.
-              </Text>
-            )}
+              vm.draft ? (
+                <>
+                  <AppInput
+                    accessibilityLabel="Nombre completo"
+                    label="Nombre completo (opcional)"
+                    leftIcon={{ ios: 'person', android: 'person', web: 'person' }}
+                    value={vm.draft.fullName}
+                    editable={!vm.isSaving}
+                    maxLength={160}
+                    error={vm.fieldErrors.fullName}
+                    onChangeText={(value) => vm.setField('fullName', value)}
+                  />
+                  <AppInput
+                    accessibilityLabel="Teléfono"
+                    label="Teléfono (opcional)"
+                    leftIcon={{ ios: 'phone', android: 'phone', web: 'phone' }}
+                    keyboardType="phone-pad"
+                    value={vm.draft.phone}
+                    editable={!vm.isSaving}
+                    maxLength={30}
+                    error={vm.fieldErrors.phone}
+                    onChangeText={(value) => vm.setField('phone', value)}
+                  />
+                  <AppButton accessibilityLabel="Guardar cambios" title="Guardar cambios" loading={vm.isSaving} onPress={() => void vm.save()} />
+                  <AppButton title="Cancelar edición" variant="outline" disabled={vm.isSaving} onPress={vm.cancelEdit} />
+                </>
+              ) : (
+                <AppButton title="Editar nombre y teléfono" variant="outline" onPress={vm.beginEdit} />
+              )
+            ) : null}
             {vm.saveError ? <Text accessibilityRole="alert" style={styles.error}>{vm.saveError}</Text> : null}
-            {vm.saveMessage ? <Text accessibilityRole="alert" style={styles.paragraph}>{vm.saveMessage}</Text> : null}
-          </View>
+            {vm.saveMessage ? <Text accessibilityRole="alert" style={styles.success}>{vm.saveMessage}</Text> : null}
+          </SectionCard>
 
-          <View style={styles.card}>
-            <Text accessibilityRole="header" style={styles.title}>Cancelación de cuenta</Text>
-            <Text style={styles.paragraph}>
-              La app aún no tramita la eliminación de cuentas. Puedes solicitarla mediante el canal
-              ARCO del aviso. El responsable deberá verificar tu identidad y revisar tus membresías,
-              pagos y registros sujetos a conservación. Abrir el correo no confirma una solicitud ni
-              elimina tu cuenta.
-            </Text>
-          </View>
-          <View style={styles.card}>
-            <Text accessibilityRole="header" style={styles.title}>Oposición a usos opcionales</Text>
-            <Text style={styles.paragraph}>
-              Aún no puedes administrar tus preferencias de promociones y encuestas desde la app.
-              Esta pantalla no registra cambios de preferencias. Puedes ejercer oposición mediante
-              el canal ARCO del aviso.
-            </Text>
-          </View>
+          <SectionCard
+            icon={PRIVACY_ICONS.cancel}
+            title="Cancelación de cuenta"
+            description="La app aún no tramita la eliminación de cuentas. Puedes solicitarla mediante el canal ARCO del aviso. El responsable deberá verificar tu identidad y revisar tus membresías, pagos y registros sujetos a conservación. Abrir el correo no confirma una solicitud ni elimina tu cuenta."
+          />
+          <SectionCard
+            icon={PRIVACY_ICONS.optOut}
+            title="Oposición a usos opcionales"
+            description="Aún no puedes administrar tus preferencias de promociones y encuestas desde la app. Esta pantalla no registra cambios de preferencias. Puedes ejercer oposición mediante el canal ARCO del aviso."
+          />
           <AppButton title="Consultar aviso y canal ARCO" variant="outline" onPress={vm.openNotice} />
         </>
       ) : null}
@@ -135,25 +121,8 @@ function AuthenticatedPrivacyCenter() {
   );
 }
 
-function DataRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <Text selectable style={styles.paragraph}>{value}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: 16,
-    backgroundColor: AppColors.surface.soft,
-    padding: AppSpacing.four,
-    gap: AppSpacing.three,
-  },
-  row: { gap: AppSpacing.one },
-  title: { fontFamily: AppFonts.emphasis, fontSize: AppFontSizes.body, color: AppColors.neutral.text },
-  label: { fontFamily: AppFonts.button, fontSize: AppFontSizes.caption, color: AppColors.neutral.muted },
-  paragraph: { fontFamily: AppFonts.body, fontSize: AppFontSizes.label, lineHeight: 22, color: AppColors.neutral.text },
-  error: { fontFamily: AppFonts.body, fontSize: AppFontSizes.caption, lineHeight: 20, color: AppColors.feedback.error },
+  paragraph: { color: AppColors.neutral.text, fontFamily: AppFonts.body, fontSize: AppFontSizes.label, lineHeight: 20 },
+  error: { color: AppColors.feedback.error, fontFamily: AppFonts.label, fontSize: AppFontSizes.caption, lineHeight: 16 },
+  success: { color: AppColors.feedback.success, fontFamily: AppFonts.label, fontSize: AppFontSizes.caption, lineHeight: 16 },
 });

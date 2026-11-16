@@ -37,6 +37,7 @@ describe('menú de la cuenta', () => {
     ]);
     expect(availableRoutes('entrenador')).toEqual([
       '/trainer/account/personal-data',
+      '/trainer/account/profile',
       '/trainer/account/memberships',
       '/trainer/clients',
       '/trainer/routines',

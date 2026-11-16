@@ -1,10 +1,10 @@
-import type { ReactNode } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { SymbolView } from 'expo-symbols';
+import type { ReactNode } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AppColors, AppFonts, AppFontSizes, AppSpacing } from '@/theme/tokens';
+import { BACK_ICON, IconButton } from '@/components/ui/icon-button';
+import { AppColors, AppFonts, AppFontSizes } from '@/theme/tokens';
 
 interface AppSectionScreenProps {
   children: ReactNode;
@@ -16,6 +16,10 @@ interface AppSectionScreenProps {
   onBack?: () => void;
 }
 
+/**
+ * Pantalla de sección del sistema: fondo blanco, flecha de regreso sin marco, overline gris,
+ * título en Bebas y descripción. El contenido se acomoda en una columna con márgenes de 20.
+ */
 export function AppSectionScreen({
   children,
   description,
@@ -27,37 +31,27 @@ export function AppSectionScreen({
 }: AppSectionScreenProps) {
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           onRefresh ? (
             <RefreshControl
               colors={[AppColors.brand.primary]}
               refreshing={refreshing}
-              tintColor={AppColors.neutral.white}
+              tintColor={AppColors.brand.primary}
               onRefresh={onRefresh}
             />
           ) : undefined
         }
         showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          {onBack ? (
-            <Pressable
-              accessibilityLabel="Regresar"
-              accessibilityRole="button"
-              hitSlop={12}
-              style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
-              onPress={onBack}>
-              <SymbolView
-                name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
-                size={22}
-                tintColor={AppColors.neutral.white}
-              />
-            </Pressable>
-          ) : null}
+          {onBack ? <IconButton icon={BACK_ICON} label="Regresar" style={styles.back} onPress={onBack} /> : null}
           <Text style={styles.eyebrow}>{eyebrow}</Text>
-          <Text style={styles.title}>{title}</Text>
+          <Text accessibilityRole="header" style={styles.title}>
+            {title}
+          </Text>
           <Text style={styles.description}>{description}</Text>
         </View>
         <View style={styles.content}>{children}</View>
@@ -67,54 +61,12 @@ export function AppSectionScreen({
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: AppColors.brand.primary },
-  backButton: {
-    width: 40,
-    height: 40,
-    marginBottom: AppSpacing.two,
-    marginLeft: -AppSpacing.two,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: { opacity: 0.7 },
-  scrollContent: {
-    flexGrow: 1,
-    backgroundColor: AppColors.surface.default,
-    paddingBottom: 112,
-  },
-  header: {
-    backgroundColor: AppColors.brand.primary,
-    paddingHorizontal: AppSpacing.four,
-    paddingTop: AppSpacing.four,
-    paddingBottom: AppSpacing.five,
-  },
-  eyebrow: {
-    color: 'rgba(255,255,255,0.78)',
-    fontFamily: AppFonts.button,
-    fontSize: AppFontSizes.caption,
-    lineHeight: 17,
-  },
-  title: {
-    marginTop: AppSpacing.one,
-    color: AppColors.neutral.white,
-    fontFamily: AppFonts.display,
-    fontSize: AppFontSizes.title,
-    lineHeight: 38,
-  },
-  description: {
-    maxWidth: 480,
-    marginTop: AppSpacing.one,
-    color: AppColors.neutral.white,
-    fontFamily: AppFonts.body,
-    fontSize: AppFontSizes.label,
-    lineHeight: 21,
-  },
-  content: {
-    width: '100%',
-    maxWidth: 680,
-    flex: 1,
-    alignSelf: 'center',
-    gap: AppSpacing.three,
-    padding: AppSpacing.four,
-  },
+  safeArea: { flex: 1, backgroundColor: AppColors.surface.default },
+  scrollContent: { width: '100%', maxWidth: 680, flexGrow: 1, alignSelf: 'center', paddingBottom: 124 },
+  header: { gap: 2, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+  back: { marginLeft: -10, marginBottom: 6 },
+  eyebrow: { color: AppColors.neutral.muted, fontFamily: AppFonts.label, fontSize: 11, letterSpacing: 0.8, lineHeight: 14 },
+  title: { color: AppColors.neutral.black, fontFamily: AppFonts.display, fontSize: AppFontSizes.hero, letterSpacing: 0.5, lineHeight: 42 },
+  description: { color: AppColors.neutral.muted, fontFamily: AppFonts.body, fontSize: AppFontSizes.label, lineHeight: 20 },
+  content: { flex: 1, gap: 16, paddingHorizontal: 20, paddingTop: 12 },
 });

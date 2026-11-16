@@ -456,11 +456,11 @@ describe('Admin more and placeholders', () => {
     expect(await screen.findByText('admin@example.test')).toBeOnTheScreen();
     expect(await screen.findByText('1 activa')).toBeOnTheScreen();
     const user = userEvent.setup();
-    for (const [label, route] of [['Tarifas de envío', '/admin/shipping-rates'], ['Punto de recogida', '/admin/pickup-point'], ['Pagos', '/admin/account/payments']]) {
+    for (const [label, route] of [['Tarifas de envío', '/admin/shipping-rates'], ['Punto de recogida', '/admin/pickup-point'], ['Pagos', '/admin/account/payments'], ['Rutinas', '/admin/routines']]) {
       await user.press(screen.getByRole('button', { name: label }));
       expect(router.push).toHaveBeenLastCalledWith(route);
     }
-    for (const label of ['Productos', 'Planes de membresía', 'Comprobantes', 'Rutinas', 'Clases y horarios', 'Configuración']) {
+    for (const label of ['Productos', 'Planes de membresía', 'Comprobantes', 'Clases y horarios', 'Configuración']) {
       expect(screen.getByRole('button', { name: `${label}, próximamente` })).toBeDisabled();
     }
   });

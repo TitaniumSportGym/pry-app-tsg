@@ -1,163 +1,101 @@
-import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
-import { StyleSheet, Text, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AppSectionScreen } from '@/components/layout/app-section-screen';
+import { ActionBar } from '@/components/ui/action-bar';
 import { AppButton } from '@/components/ui/app-button';
-import { EmptyState, ErrorState, LoadingState } from '@/components/ui/screen-state';
+import { ErrorState } from '@/components/ui/screen-state';
+import { SubHeader } from '@/components/ui/sub-header';
+import { ExerciseVideoModal } from '@/features/training/views/exercise-video-modal';
 import { useTrainerRoutineDetailViewModel } from '@/features/trainer/viewmodels/use-trainer-routine-detail-view-model';
-import { AppColors, AppFonts, AppFontSizes, AppSpacing } from '@/theme/tokens';
+import { RoutineDetailContent, RoutineDetailSkeleton } from '@/features/trainer/views/routine-detail-content';
+import { AppColors, AppFonts, AppFontSizes } from '@/theme/tokens';
 
-interface TrainerRoutineDetailViewProps {
-  routineId: unknown;
-}
-
-export function TrainerRoutineDetailView({ routineId }: TrainerRoutineDetailViewProps) {
+/** Pantallas 86–88 · Entrenador — detalle de la rutina con las acciones de cada estado. */
+export function TrainerRoutineDetailView({ routineId }: { routineId: string | undefined }) {
   const viewModel = useTrainerRoutineDetailViewModel(routineId);
-  const routine = viewModel.routine;
+  const { routine } = viewModel;
+
+  function confirm(title: string, message: string, label: string, onConfirm: () => void, destructive = false) {
+    Alert.alert(title, message, [
+      { text: 'Volver', style: 'cancel' },
+      { text: label, style: destructive ? 'destructive' : 'default', onPress: onConfirm },
+    ]);
+  }
+
+  const hasActions = Boolean(routine) && (viewModel.canSubmit || viewModel.canEdit || viewModel.canArchive);
 
   return (
-    <AppSectionScreen
-      eyebrow="DETALLE DE RUTINA"
-      title={routine ? routine.title.toUpperCase() : 'RUTINA'}
-      description={routine ? routine.schedule : ''}
-      refreshing={viewModel.isRefreshing}
-      onBack={viewModel.goBack}
-      onRefresh={viewModel.refresh}>
-      {viewModel.isLoading ? (
-        <LoadingState label="Cargando rutina…" />
-      ) : viewModel.errorMessage ? (
-        <ErrorState message={viewModel.errorMessage} onRetry={viewModel.retry} />
-      ) : routine ? (
-        <>
-          {routine.imageUrl ? (
-            <Image contentFit="cover" source={{ uri: routine.imageUrl }} style={styles.image} />
-          ) : null}
-
-          <View style={styles.card}>
-            <InfoRow label="Objetivo" value={routine.objective} />
-            <InfoRow label="Nivel" value={routine.level} />
-            <InfoRow label="Categoría" value={routine.category} />
-            <InfoRow label="Estado" value={routine.statusLabel} />
-            {routine.description ? (
-              <Text style={styles.description}>{routine.description}</Text>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+      <StatusBar style="dark" />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl colors={[AppColors.brand.primary]} refreshing={viewModel.isRefreshing} tintColor={AppColors.brand.primary} onRefresh={viewModel.refresh} />
+        }
+        showsVerticalScrollIndicator={false}>
+        <SubHeader subtitle={viewModel.edited || undefined} title="MI RUTINA" onBack={viewModel.goBack} />
+        {viewModel.showSkeleton ? <RoutineDetailSkeleton /> : null}
+        {viewModel.errorMessage ? <ErrorState message={viewModel.errorMessage} onRetry={viewModel.retry} /> : null}
+        {routine ? (
+          <>
+            <RoutineDetailContent notice={viewModel.notice} routine={routine} onOpenVideo={viewModel.openVideo} />
+            {viewModel.canDelete ? (
+              <Pressable
+                accessibilityRole="button"
+                disabled={viewModel.busy !== null}
+                hitSlop={8}
+                style={({ pressed }) => [styles.delete, pressed && styles.pressed]}
+                onPress={() =>
+                  confirm('¿Eliminar rutina?', 'Se borrarán la rutina, sus ejercicios y videos. No se puede deshacer.', 'Eliminar', () => void viewModel.remove(), true)
+                }>
+                <Text style={styles.deleteText}>Eliminar rutina</Text>
+              </Pressable>
             ) : null}
-          </View>
+          </>
+        ) : null}
+      </ScrollView>
 
-          {routine.days.length === 0 ? (
-            <EmptyState
-              icon={{ ios: 'figure.strengthtraining.traditional', android: 'fitness_center', web: 'fitness_center' }}
-              title="Esta rutina no tiene ejercicios"
-              description="Agrega ejercicios a la rutina para verlos aquí."
+      {hasActions ? (
+        <ActionBar>
+          {viewModel.actionError ? (
+            <Text accessibilityRole="alert" style={styles.error}>
+              {viewModel.actionError}
+            </Text>
+          ) : null}
+          {viewModel.canSubmit ? (
+            <AppButton
+              loading={viewModel.busy === 'submit'}
+              title={viewModel.isRejected ? 'Corregir y reenviar' : 'Enviar a revisión'}
+              onPress={() =>
+                viewModel.isRejected
+                  ? viewModel.edit()
+                  : confirm('¿Enviar a revisión?', 'El administrador la revisará antes de publicarla. Mientras tanto no podrás editarla.', 'Enviar', () => void viewModel.submit())
+              }
             />
-          ) : (
-            routine.days.map((day) => (
-              <View key={day.dayNumber} style={styles.day}>
-                <Text style={styles.dayTitle}>DÍA {day.dayNumber}</Text>
-                {day.exercises.map((exercise) => (
-                  <View key={exercise.id} style={styles.card}>
-                    <Text style={styles.exerciseName}>{exercise.name}</Text>
-                    <Text style={styles.prescription}>{exercise.prescription}</Text>
-                    {exercise.description ? (
-                      <Text style={styles.description}>{exercise.description}</Text>
-                    ) : null}
-                    {exercise.notes ? (
-                      <Text style={styles.notes}>Nota: {exercise.notes}</Text>
-                    ) : null}
-                    {exercise.videoUrl ? (
-                      <AppButton
-                        leftIcon={
-                          <SymbolView
-                            name={{ ios: 'play.rectangle.fill', android: 'smart_display', web: 'smart_display' }}
-                            size={19}
-                            tintColor={AppColors.neutral.text}
-                          />
-                        }
-                        style={styles.videoButton}
-                        title="Ver video"
-                        variant="outline"
-                        onPress={() => viewModel.openVideo(exercise.videoUrl)}
-                      />
-                    ) : null}
-                  </View>
-                ))}
-              </View>
-            ))
-          )}
-        </>
+          ) : null}
+          {viewModel.canEdit ? <AppButton title="Editar rutina" variant="outline" onPress={viewModel.edit} /> : null}
+          {viewModel.canArchive && !viewModel.canSubmit ? (
+            <AppButton
+              loading={viewModel.busy === 'archive'}
+              title="Archivar rutina"
+              variant="outline"
+              onPress={() => confirm('¿Archivar rutina?', 'Los socios dejarán de verla.', 'Archivar', () => void viewModel.archive())}
+            />
+          ) : null}
+        </ActionBar>
       ) : null}
-    </AppSectionScreen>
-  );
-}
 
-function InfoRow({ label, value }: { label: string; value: string }) {
-  if (!value) return null;
-
-  return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
-    </View>
+      <ExerciseVideoModal activeVideo={viewModel.activeVideo} onClose={viewModel.closeVideo} onOpenExternally={viewModel.openVideoExternally} />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  image: { width: '100%', height: 180, borderRadius: 8 },
-  card: {
-    gap: AppSpacing.one,
-    borderWidth: 1,
-    borderColor: AppColors.border.default,
-    borderRadius: 8,
-    backgroundColor: AppColors.surface.default,
-    padding: AppSpacing.three,
-  },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', gap: AppSpacing.three },
-  infoLabel: {
-    color: AppColors.neutral.muted,
-    fontFamily: AppFonts.body,
-    fontSize: AppFontSizes.label,
-    lineHeight: 22,
-  },
-  infoValue: {
-    flexShrink: 1,
-    color: AppColors.neutral.text,
-    fontFamily: AppFonts.label,
-    fontSize: AppFontSizes.label,
-    lineHeight: 22,
-    textAlign: 'right',
-  },
-  day: { gap: AppSpacing.two },
-  dayTitle: {
-    marginTop: AppSpacing.two,
-    color: AppColors.brand.primary,
-    fontFamily: AppFonts.display,
-    fontSize: 24,
-    lineHeight: 28,
-  },
-  exerciseName: {
-    color: AppColors.neutral.text,
-    fontFamily: AppFonts.emphasis,
-    fontSize: AppFontSizes.body,
-    lineHeight: 22,
-  },
-  prescription: {
-    color: AppColors.neutral.description,
-    fontFamily: AppFonts.label,
-    fontSize: AppFontSizes.caption,
-    lineHeight: 17,
-  },
-  description: {
-    marginTop: AppSpacing.one,
-    color: AppColors.neutral.description,
-    fontFamily: AppFonts.body,
-    fontSize: AppFontSizes.label,
-    lineHeight: 20,
-  },
-  notes: {
-    color: AppColors.neutral.muted,
-    fontFamily: AppFonts.body,
-    fontSize: AppFontSizes.caption,
-    lineHeight: 17,
-  },
-  videoButton: { marginTop: AppSpacing.two },
+  safeArea: { flex: 1, backgroundColor: AppColors.surface.default },
+  content: { width: '100%', maxWidth: 560, flexGrow: 1, alignSelf: 'center', gap: 14, paddingHorizontal: 20, paddingBottom: 32 },
+  delete: { alignItems: 'center', paddingVertical: 8 },
+  deleteText: { color: AppColors.feedback.error, fontFamily: AppFonts.label, fontSize: AppFontSizes.label, lineHeight: 20 },
+  pressed: { opacity: 0.7 },
+  error: { color: AppColors.feedback.error, fontFamily: AppFonts.label, fontSize: AppFontSizes.caption, lineHeight: 16, textAlign: 'center' },
 });

@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { AppColors, AppFonts } from '@/theme/tokens';
 
-export type PillTone = 'success' | 'error' | 'brand' | 'neutral';
+export type PillTone = 'success' | 'error' | 'brand' | 'neutral' | 'warning';
 
 /** Etiqueta corta de estado (Aprobado, Pendiente, Predeterminada…). */
 export function StatusPill({ label, tone }: { label: string; tone: PillTone }) {
@@ -25,6 +25,7 @@ const pillStyles = StyleSheet.create({
   error: { backgroundColor: AppColors.surface.softSelected },
   brand: { backgroundColor: AppColors.surface.softSelected },
   neutral: { backgroundColor: AppColors.surface.input },
+  warning: { backgroundColor: AppColors.feedback.warningSoft },
 });
 
 const textStyles = StyleSheet.create({
@@ -32,4 +33,5 @@ const textStyles = StyleSheet.create({
   error: { color: AppColors.feedback.error },
   brand: { color: AppColors.brand.primary },
   neutral: { color: AppColors.neutral.muted },
+  warning: { color: AppColors.feedback.warning },
 });

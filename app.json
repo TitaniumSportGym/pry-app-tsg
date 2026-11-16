@@ -37,6 +37,14 @@
       "expo-router",
       "./plugins/with-network-security.cjs",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Titanium usa tus fotos y videos solo para subir la portada de tus rutinas, los videos de los ejercicios y tu foto de perfil.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {
