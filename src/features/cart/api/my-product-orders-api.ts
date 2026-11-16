@@ -9,7 +9,7 @@ export interface MyProductOrder {
   shippingTotal: string;
   createdAt: string;
   paidAt: string | null;
-  items: Array<{ id: string; itemNameSnapshot: string; quantity: number; subtotal: string; itemType: string }>;
+  items: { id: string; itemNameSnapshot: string; quantity: number; subtotal: string; itemType: string }[];
   fulfillment: null | {
     method: 'pickup' | 'delivery';
     status: string;
