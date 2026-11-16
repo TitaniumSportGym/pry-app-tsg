@@ -6,6 +6,8 @@ const { spawnSync } = require('node:child_process');
 const { createHash } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { parseArgs } = require('node:util');
+const { readManifest, verifyPrebuildPermissions, verifyMergedPermissions } = require('./android-permissions.cjs');
 const { PROFILES, getSettings, configureApp, readConfig } = require('../config/alpha-pinning.cjs');
 const { policiesForAlpha } = require('../plugins/with-network-security.cjs');
 const { certificatePinnerSource } = require('../plugins/alpha-certificate-pinner.cjs');
@@ -13,7 +15,7 @@ const { certificatePinnerSource } = require('../plugins/alpha-certificate-pinner
 const projectRoot = path.resolve(path.dirname(module.filename), '..');
 const readJson = (file) => JSON.parse(fs.readFileSync(path.join(projectRoot, file), 'utf8'));
 
-function verifyAndroidRelease(profileName = 'production') {
+async function verifyAndroidRelease(profileName = 'production', mergedManifestPath) {
   const app = readJson('app.json');
   const eas = readJson('eas.json');
   assert.ok(PROFILES.includes(profileName));
@@ -102,12 +104,22 @@ function verifyAndroidRelease(profileName = 'production') {
     assert.ok(policy(variant).includes(`<domain includeSubdomains="false">${active.host}</domain>`));
   }
   assert.deepEqual([...policy('debug').matchAll(/<domain>(.*?)<\/domain>/g)].map(match => match[1]), ['localhost', '127.0.0.1', '10.0.2.2']);
-  const declaredPermissions = [...manifest.matchAll(/<uses-permission\b[^>]*>/g)]
-    .map(match => match[0]).filter(entry => !/tools:node="remove"/.test(entry))
-    .map(entry => entry.match(/android:name="([^"]+)"/)[1]).sort();
-  assert.deepEqual(declaredPermissions, ['android.permission.CAMERA', 'android.permission.INTERNET']);
-  for (const permission of app.expo.android.blockedPermissions) {
-    assert.ok(manifest.includes(`android:name="${permission}" tools:node="remove"`), `Conservar bloqueo de ${permission}.`);
+  const prebuildManifestPath = path.join(nativeRoot, 'app', 'src', 'main', 'AndroidManifest.xml');
+  const cameraPackagePath = require.resolve('expo-camera/package.json');
+  const cameraManifestPath = path.join(path.dirname(cameraPackagePath), 'android', 'src', 'main', 'AndroidManifest.xml');
+  const permissionEvidence = verifyPrebuildPermissions(await readManifest(prebuildManifestPath),
+    await readManifest(cameraManifestPath), app.expo.android.blockedPermissions);
+  let mergedManifest = null;
+  if (mergedManifestPath) {
+    const file = path.resolve(mergedManifestPath);
+    assert.notEqual(fs.realpathSync(file), fs.realpathSync(prebuildManifestPath), 'No usar el main del prebuild como manifiesto fusionado.');
+    assert.notEqual(fs.realpathSync(file), fs.realpathSync(cameraManifestPath), 'No usar el manifiesto de expo-camera como fusionado.');
+    mergedManifest = {
+      path: file,
+      sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
+      permissions: verifyMergedPermissions(await readManifest(file), app.expo.android.blockedPermissions),
+      provenanceVerified: false,
+    };
   }
   const mainApplication = fs.readFileSync(path.join(nativeRoot, 'app', 'src', 'main', 'java', ...app.expo.android.package.split('.'), 'MainApplication.kt'), 'utf8');
   assert.doesNotMatch(mainApplication, /TitaniumPinningLab|setOkHttpClientFactory|sslSocketFactory|hostnameVerifier/);
@@ -127,7 +139,7 @@ function verifyAndroidRelease(profileName = 'production') {
     buildProperties: require('expo-build-properties/package.json').version,
     sourceHashes: Object.fromEntries(['app.json', 'app.config.js', 'eas.json', 'package.json', 'package-lock.json',
       'config/alpha-pinning-public-chain.json', 'config/alpha-pinning.cjs', 'plugins/with-network-security.cjs',
-      'plugins/alpha-certificate-pinner.cjs'].map((file) => [
+      'plugins/alpha-certificate-pinner.cjs', 'scripts/verify-android-release.cjs', 'scripts/android-permissions.cjs'].map((file) => [
       file, createHash('sha256').update(fs.readFileSync(path.join(projectRoot, file))).digest('hex'),
     ])),
     snapshot: path.relative(projectRoot, snapshot),
@@ -145,7 +157,15 @@ function verifyAndroidRelease(profileName = 'production') {
     spkiPins: active.pins,
     operationalBackup: null,
     nativeRuntimePinningVerified: false,
-    prebuildPermissions: declaredPermissions,
+    ...permissionEvidence,
+    cameraDependencyManifest: {
+      package: 'expo-camera',
+      version: JSON.parse(fs.readFileSync(cameraPackagePath, 'utf8')).version,
+      path: path.relative(projectRoot, cameraManifestPath),
+      sha256: createHash('sha256').update(fs.readFileSync(cameraManifestPath)).digest('hex'),
+    },
+    mergedManifest,
+    suppliedMergedManifestPermissionsVerified: Boolean(mergedManifest),
     mergedBinaryPermissionsVerified: false,
     proguardPreset: 'proguard-android-optimize.txt',
     appProguardRules: 'android/app/proguard-rules.pro',
@@ -157,11 +177,12 @@ function verifyAndroidRelease(profileName = 'production') {
   console.log(JSON.stringify(evidence, null, 2));
 }
 
-try {
-  const args = process.argv.slice(2);
-  assert.ok(args.length === 0 || (args.length === 2 && args[0] === '--profile'), 'Usar --profile <perfil>.');
-  verifyAndroidRelease(args[1]);
-} catch (error) {
+async function main() {
+  const { values } = parseArgs({ options: { profile: { type: 'string' }, 'merged-manifest': { type: 'string' } } });
+  await verifyAndroidRelease(values.profile, values['merged-manifest']);
+}
+
+main().catch(error => {
   console.error(error.message);
   process.exitCode = 1;
-}
+});

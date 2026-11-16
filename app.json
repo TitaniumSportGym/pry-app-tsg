@@ -40,7 +40,7 @@
         "expo-image-picker",
         {
           "photosPermission": "Titanium usa tus fotos y videos solo para subir la portada de tus rutinas, los videos de los ejercicios y tu foto de perfil.",
-          "cameraPermission": false,
+          "cameraPermission": "Titanium Sport Gym usa la cámara para escanear el código QR de acceso de los socios.",
           "microphonePermission": false
         }
       ],
