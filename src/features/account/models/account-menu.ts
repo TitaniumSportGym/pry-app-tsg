@@ -91,7 +91,7 @@ const ROLE_SECTIONS: Record<UserRole, AccountMenuSection[]> = {
           id: 'membership',
           label: 'Mi membresía',
           icon: { ios: 'crown', android: 'workspace_premium', web: 'workspace_premium' },
-          route: '/memberships',
+          route: '/account/membership',
         },
         {
           id: 'access',
@@ -115,6 +115,13 @@ const ROLE_SECTIONS: Record<UserRole, AccountMenuSection[]> = {
           id: 'orders',
           label: 'Mis pedidos',
           icon: { ios: 'bag', android: 'shopping_bag', web: 'shopping_bag' },
+          route: '/account/orders',
+        },
+        {
+          id: 'addresses',
+          label: 'Mis direcciones',
+          icon: { ios: 'mappin.and.ellipse', android: 'location_on', web: 'location_on' },
+          route: '/account/addresses',
         },
         {
           id: 'payment-methods',

@@ -42,6 +42,15 @@ export const adminResponses = () => ({
   '/api/admin/products': [{ id: 'product-1' }],
   '/api/admin/routines': { routines: [{ id: 'routine-1' }] },
   '/api/memberships/plans': { plans: [] },
+  '/api/admin/pickup-settings': {
+    ok: true,
+    configured: true,
+    settings: {
+      name: 'Gimnasio de prueba', address: 'Calle de prueba 1', phone: '7710000000',
+      municipality: 'Huejutla', state: 'Hidalgo', postalCode: '43000',
+      hours: 'Lunes a viernes 6:00–23:00', instructions: 'Presenta tu número de pedido.', enabled: true,
+    },
+  },
 });
 
 export function givenAdminApi(overrides: Record<string, unknown> = {}) {

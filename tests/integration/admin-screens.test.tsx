@@ -14,6 +14,7 @@ import { AdminOrdersView } from '../../src/features/admin/views/admin-orders-vie
 import { AdminPaymentsView } from '../../src/features/admin/views/admin-payments-view';
 import { AdminUsersView } from '../../src/features/admin/views/admin-users-view';
 import { PickupPointView } from '../../src/features/admin/views/pickup-point-view';
+import { ShippingRateFormView } from '../../src/features/admin/views/shipping-rate-form-view';
 import { ShippingRatesView } from '../../src/features/admin/views/shipping-rates-view';
 import { UpdateDeliveryView } from '../../src/features/admin/views/update-delivery-view';
 import { apiRequest } from '../../src/services/apiClient';
@@ -243,19 +244,67 @@ describe('Protected admin resources', () => {
   });
 });
 
+const RATE_ID = 'b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e';
+const ORDER_UUID = '01139ab5-a809-4fa9-8b41-287da9abb705';
+const syntheticRates = [
+  { id: RATE_ID, name: 'Zona de prueba', postalCodeFrom: '43000', postalCodeTo: '43999', amount: '230.00', active: true },
+  { id: 'c2d3e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6f', name: 'Zona inactiva', postalCodeFrom: '00001', postalCodeTo: '00009', amount: '50.00', active: false },
+];
+const writes = (method: string) =>
+  jest.mocked(apiRequest).mock.calls.filter(([, options]) => options?.method === method);
+
 describe('Shipping rates', () => {
-  it('shows active and inactive real rates, postal codes and prices, with editing disabled', async () => {
+  it('lists real rates and lets the admin create, edit and switch them on or off', async () => {
+    givenAdminApi({ [ratesPath]: { rates: syntheticRates }, [`${ratesPath}/${RATE_ID}`]: { ok: true } });
     await renderAdmin(<ShippingRatesView />);
+    const user = userEvent.setup();
     expect(await screen.findByText('Zona de prueba')).toBeOnTheScreen();
     expect(screen.getByText('43000')).toBeOnTheScreen();
-    expect(screen.getByText('43999')).toBeOnTheScreen();
     expect(screen.getByText('$230.00')).toBeOnTheScreen();
     expect(screen.getByText('Inactiva')).toBeOnTheScreen();
-    expect(screen.getByRole('switch', { name: /Zona de prueba/ }).props.disabled).toBe(true);
-    expect(screen.getByRole('button', { name: 'Nueva tarifa' })).toBeDisabled();
     expect(screen.getByText('Gratis')).toBeOnTheScreen();
-    await userEvent.setup().press(screen.getByRole('button', { name: 'Regresar' }));
+
+    await fireEvent(screen.getByRole('switch', { name: /Zona de prueba/ }), 'valueChange', false);
+    await waitFor(() => expect(writes('PATCH')).toHaveLength(1));
+    expect(writes('PATCH')[0]).toEqual([`${ratesPath}/${RATE_ID}`, { method: 'PATCH', body: { active: false } }]);
+
+    await user.press(screen.getByRole('button', { name: 'Editar tarifa Zona de prueba' }));
+    expect(router.push).toHaveBeenCalledWith({ pathname: '/admin/shipping-rate', params: { id: RATE_ID } });
+    await user.press(screen.getByRole('button', { name: 'Nueva tarifa' }));
+    expect(router.push).toHaveBeenCalledWith('/admin/shipping-rate');
+    await user.press(screen.getByRole('button', { name: 'Regresar' }));
     expect(router.replace).toHaveBeenCalledWith('/admin/account');
+  });
+
+  it('validates a new rate, warns about overlapping ranges and creates it', async () => {
+    jest.mocked(useLocalSearchParams).mockReturnValue({});
+    givenAdminApi({ [ratesPath]: { rates: syntheticRates } });
+    await renderAdmin(<ShippingRateFormView />);
+    const user = userEvent.setup();
+
+    await user.press(await screen.findByRole('button', { name: 'Guardar tarifa' }));
+    expect(screen.getByText('Escribe el nombre de la tarifa.')).toBeOnTheScreen();
+    expect(writes('POST')).toHaveLength(0);
+
+    await user.type(screen.getByLabelText('Nombre'), 'Huejutla local');
+    await user.type(screen.getByLabelText('CP inicial'), '43a010');
+    await user.type(screen.getByLabelText('CP final'), '43005');
+    expect(screen.getByLabelText('CP inicial')).toHaveDisplayValue('43010');
+    await user.type(screen.getByLabelText('Importe (MXN)'), '79.5');
+    await user.press(screen.getByRole('button', { name: 'Guardar tarifa' }));
+    expect(screen.getByText('El CP final debe ser mayor o igual al CP inicial.')).toBeOnTheScreen();
+
+    await user.clear(screen.getByLabelText('CP final'));
+    await user.type(screen.getByLabelText('CP final'), '43099');
+    expect(screen.getByText(/El rango se cruza con “Zona de prueba” \(43000–43999\)/)).toBeOnTheScreen();
+    await user.press(screen.getByRole('button', { name: 'Guardar tarifa' }));
+
+    await waitFor(() => expect(writes('POST')).toHaveLength(1));
+    expect(writes('POST')[0]).toEqual([ratesPath, {
+      method: 'POST',
+      body: { name: 'Huejutla local', postalCodeFrom: '43010', postalCodeTo: '43099', amount: '79.50', active: true },
+    }]);
+    expect(router.replace).toHaveBeenCalledWith('/admin/shipping-rates');
   });
 
   it('loads, reports errors, retries and refreshes to empty', async () => {
@@ -278,33 +327,56 @@ describe('Shipping rates', () => {
 });
 
 describe('Delivery form', () => {
-  it('offers only server-authorized transitions, edits shipment fields and never pretends to save', async () => {
-    givenAdminApi({ [ordersPath]: { orders: [adminOrder('order-1', 'packed', 'delivery', ['shipped', 'incident', 'cancelled'])] } });
+  it('offers only server-authorized transitions and saves a shipment with carrier and tracking', async () => {
+    jest.mocked(useLocalSearchParams).mockReturnValue({ id: ORDER_UUID });
+    givenAdminApi({
+      [ordersPath]: { orders: [adminOrder(ORDER_UUID, 'packed', 'delivery', ['shipped', 'incident', 'cancelled'])] },
+      [`/api/admin/orders/${ORDER_UUID}/fulfillment`]: { ok: true },
+    });
     await renderAdmin(<UpdateDeliveryView />);
-    expect(await screen.findByText('Pedido #TEST-order-1 · Socio de Prueba')).toBeOnTheScreen();
+    expect(await screen.findByText(`Pedido #TEST-${ORDER_UUID} · Socio de Prueba`)).toBeOnTheScreen();
     expect(screen.getAllByRole('radio')).toHaveLength(3);
     expect(screen.getByRole('radio', { name: /Enviado/ })).toBeChecked();
     expect(screen.queryByRole('radio', { name: /Entregado/ })).toBeNull();
     const user = userEvent.setup();
+    await user.press(screen.getByRole('radio', { name: /Incidencia/ }));
+    expect(screen.queryByLabelText('Número de guía')).toBeNull();
+    await user.press(screen.getByRole('radio', { name: /Enviado/ }));
     await user.press(screen.getByRole('button', { name: 'DHL' }));
     expect(screen.getByRole('button', { name: 'DHL' })).toBeSelected();
+
+    await user.press(screen.getByRole('button', { name: 'Guardar estado' }));
+    expect(screen.getByText('Escribe el número de guía.')).toBeOnTheScreen();
+    expect(writes('PATCH')).toHaveLength(0);
+
     const tracking = screen.getByLabelText('Número de guía');
     await user.type(tracking, 'TEST123');
-    expect(tracking).toHaveDisplayValue('TEST123');
     expect(tracking.props.maxLength).toBe(40);
     await user.type(screen.getByLabelText('Nota interna'), 'Entregar por la tarde');
-    expect(screen.getByLabelText('Nota interna')).toHaveDisplayValue('Entregar por la tarde');
-    await user.press(screen.getByRole('radio', { name: /Incidencia/ }));
-    expect(screen.getByRole('radio', { name: /Incidencia/ })).toBeChecked();
-    expect(screen.queryByLabelText('Número de guía')).toBeNull();
-    await user.press(screen.getByRole('radio', { name: /Cancelado/ }));
-    expect(screen.getByRole('radio', { name: /Cancelado/ })).toBeChecked();
-    expect(screen.getByRole('button', { name: 'Guardar estado' })).toBeDisabled();
-    expect(screen.getByText('Guardar estará disponible cuando el backend lo permita.')).toBeOnTheScreen();
-    expect(apiRequest).toHaveBeenCalledTimes(1);
-    expect(apiRequest).toHaveBeenCalledWith(ordersPath);
-    await user.press(screen.getByRole('button', { name: 'Cancelar' }));
+    await user.press(screen.getByRole('button', { name: 'Guardar estado' }));
+
+    await waitFor(() => expect(writes('PATCH')).toHaveLength(1));
+    expect(writes('PATCH')[0]).toEqual([`/api/admin/orders/${ORDER_UUID}/fulfillment`, {
+      method: 'PATCH',
+      body: { status: 'shipped', expectedStatus: 'packed', carrier: 'DHL', trackingNumber: 'TEST123', notes: 'Entregar por la tarde' },
+    }]);
     expect(router.replace).toHaveBeenCalledWith('/admin/orders');
+  });
+
+  it('explains when another admin changed the order first and reloads it', async () => {
+    jest.mocked(useLocalSearchParams).mockReturnValue({ id: ORDER_UUID });
+    givenAdminApi({
+      [ordersPath]: { orders: [adminOrder(ORDER_UUID, 'payment_confirmed', 'pickup', ['preparing', 'cancelled'])] },
+      [`/api/admin/orders/${ORDER_UUID}/fulfillment`]: new ApiError('El pedido cambió. Actualiza la vista antes de continuar.', 409),
+    });
+    await renderAdmin(<UpdateDeliveryView />);
+    const user = userEvent.setup();
+    expect(await screen.findByRole('radio', { name: /En preparación/ })).toBeChecked();
+    await user.press(screen.getByRole('button', { name: 'Guardar estado' }));
+    expect(await screen.findByText('El pedido cambió. Actualiza la vista antes de continuar.')).toBeOnTheScreen();
+    expect(writes('PATCH')[0][1]).toEqual({ method: 'PATCH', body: { status: 'preparing', expectedStatus: 'payment_confirmed' } });
+    await waitFor(() => expect(jest.mocked(apiRequest).mock.calls.filter(([path]) => path === ordersPath)).toHaveLength(2));
+    expect(router.replace).not.toHaveBeenCalled();
   });
 
   it('preselects the next ordinary step and goes back through navigation history', async () => {
@@ -337,26 +409,35 @@ describe('Delivery form', () => {
   });
 });
 
-describe('Pickup point local form', () => {
-  it('edits every field, sanitizes postal codes, toggles availability and identifies sample hours', async () => {
+describe('Pickup point', () => {
+  it('loads the real settings, validates the postal code and saves them', async () => {
     await renderAdmin(<PickupPointView />);
     const user = userEvent.setup();
-    for (const [label, value] of [
-      ['Nombre', 'Recepción de prueba'], ['Dirección', 'Calle de prueba 1'],
-      ['Municipio', 'Huejutla'], ['Teléfono', '7711234567'], ['Instrucciones para el cliente', 'Presentar identificación'],
-    ]) {
-      const field = screen.getByLabelText(label);
-      await user.clear(field);
-      await user.type(field, value);
-      expect(field).toHaveDisplayValue(value);
-    }
-    await fireEvent.changeText(screen.getByLabelText('CP'), '43a00');
-    expect(screen.getByLabelText('CP')).toHaveDisplayValue('4300');
+    expect(await screen.findByLabelText('Nombre')).toHaveDisplayValue('Gimnasio de prueba');
+    expect(screen.getByLabelText('Horarios')).toHaveDisplayValue('Lunes a viernes 6:00–23:00');
+
+    await user.clear(screen.getByLabelText('Dirección'));
+    await user.type(screen.getByLabelText('Dirección'), 'Calle de prueba 2');
+    await fireEvent.changeText(screen.getByLabelText('CP'), '43a0');
+    expect(screen.getByLabelText('CP')).toHaveDisplayValue('430');
     await fireEvent(screen.getByRole('switch', { name: 'Recogida disponible' }), 'valueChange', false);
-    expect(screen.getByRole('switch', { name: 'Recogida disponible' }).props.value).toBe(false);
-    expect(screen.getByLabelText('Datos de ejemplo')).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled();
-    expect(apiRequest).not.toHaveBeenCalled();
+
+    await user.press(screen.getByRole('button', { name: 'Guardar cambios' }));
+    expect(screen.getByText('Escribe un CP de 5 dígitos.')).toBeOnTheScreen();
+    expect(writes('PUT')).toHaveLength(0);
+
+    await fireEvent.changeText(screen.getByLabelText('CP'), '43000');
+    await user.press(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(writes('PUT')).toHaveLength(1));
+    expect(writes('PUT')[0]).toEqual(['/api/admin/pickup-settings', {
+      method: 'PUT',
+      body: {
+        enabled: false, name: 'Gimnasio de prueba', address: 'Calle de prueba 2', phone: '7710000000',
+        municipality: 'Huejutla', state: 'Hidalgo', postalCode: '43000',
+        hours: 'Lunes a viernes 6:00–23:00', instructions: 'Presenta tu número de pedido.',
+      },
+    }]);
+    expect(await screen.findByText('Cambios guardados. El cliente ya ve la nueva información.')).toBeOnTheScreen();
     await user.press(screen.getByRole('button', { name: 'Regresar' }));
     expect(router.replace).toHaveBeenCalledWith('/admin/account');
   });
@@ -400,11 +481,11 @@ describe('Admin more and placeholders', () => {
     jest.mocked(logout).mockReturnValue(pending.promise);
     await renderAdmin(<AdminMoreView />);
     await screen.findByText('admin@example.test');
-    await userEvent.setup().press(screen.getByRole('button', { name: 'Cerrar sesión' }));
+    await userEvent.setup().press(screen.getByRole('button', { name: 'CERRAR SESIÓN' }));
     expect(logout).not.toHaveBeenCalled();
     const confirm = alert.mock.lastCall![2]!.find(button => button.text === 'Cerrar sesión')!;
     await act(async () => confirm.onPress!());
-    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'CERRAR SESIÓN' })).toBeDisabled();
     await act(async () => pending.resolve());
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/'));
     expect(logout).toHaveBeenCalledTimes(1);

@@ -40,7 +40,11 @@ jest.mock("../../src/services/sessionService", () => ({
   saveAccessToken: jest.fn(),
 }));
 
-jest.mock("expo-web-browser", () => ({ openBrowserAsync: jest.fn() }));
+jest.mock("expo-linking", () => ({ createURL: (path: string) => `pryapptsg://${path}`, openURL: jest.fn() }));
+jest.mock("expo-web-browser", () => ({
+  openBrowserAsync: jest.fn(),
+  openAuthSessionAsync: jest.fn().mockResolvedValue({ type: "cancel" }),
+}));
 
 jest.mock("../../src/features/memberships/api/checkout-api", () => ({
   createMembershipCheckout: jest.fn(),
@@ -242,7 +246,10 @@ describe("Integración — comprar membresía", () => {
     await user.press(screen.getByRole("button", { name: "Comprar por $780" }));
 
     expect(createMembershipCheckout).toHaveBeenCalledWith(couple.id, expect.any(String));
-    expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith(CHECKOUT_URL);
+    expect(WebBrowser.openAuthSessionAsync).toHaveBeenCalledWith(
+      CHECKOUT_URL,
+      expect.stringContaining("memberships/payment-result"),
+    );
   });
 
   it("usa la misma llave si el cliente reintenta el mismo pago", async () => {
@@ -264,7 +271,7 @@ describe("Integración — comprar membresía", () => {
       .mocked(createMembershipCheckout)
       .mock.calls.map(([, key]) => key);
     expect(secondKey).toBe(firstKey);
-    expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith(CHECKOUT_URL);
+    expect(WebBrowser.openAuthSessionAsync).toHaveBeenCalledWith(CHECKOUT_URL, expect.any(String));
   });
 
   it("muestra el motivo cuando el backend rechaza la compra", async () => {
@@ -276,7 +283,7 @@ describe("Integración — comprar membresía", () => {
     await userEvent.setup().press(await screen.findByRole("button", { name: "Comprar por $440" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Ya tienes una membresía activa");
-    expect(WebBrowser.openBrowserAsync).not.toHaveBeenCalled();
+    expect(WebBrowser.openAuthSessionAsync).not.toHaveBeenCalled();
   });
 
   it("no muestra el botón de compra al entrenador", async () => {

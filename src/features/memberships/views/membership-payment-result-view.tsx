@@ -1,14 +1,13 @@
 import { StatusBar } from 'expo-status-bar';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
-import { useEffect, useState } from 'react';
-import { Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenCaptureGuard } from '@/components/security/screen-capture-guard';
 import { AppButton } from '@/components/ui/app-button';
+import { PaymentSpinner, PaymentStep, TextLink } from '@/components/ui/payment-progress';
 import { AccessQrCode } from '@/features/access/views/access-qr-code';
 import { useMembershipPaymentResultViewModel } from '@/features/memberships/viewmodels/use-membership-payment-result-view-model';
-import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { AppColors, AppFonts, AppFontSizes, AppShadows, AppSpacing } from '@/theme/tokens';
 
 const CHECK_ICON: SymbolViewProps['name'] = { ios: 'checkmark', android: 'check', web: 'check' };
@@ -129,7 +128,7 @@ export function MembershipPaymentResultView({ orderId }: { orderId: string | und
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={[styles.content, styles.waiting]}>
-        <Spinner active={verifying} />
+        <PaymentSpinner active={verifying} />
         <Text accessibilityRole="header" style={styles.title}>
           {copy.title}
         </Text>
@@ -138,9 +137,9 @@ export function MembershipPaymentResultView({ orderId }: { orderId: string | und
         </Text>
 
         <View style={styles.steps}>
-          <Step label="Pago enviado a Mercado Pago" state="done" />
-          <Step label="Confirmación del pago" state="current" />
-          <Step label="Membresía activada" state="pending" />
+          <PaymentStep label="Pago enviado a Mercado Pago" state="done" />
+          <PaymentStep label="Confirmación del pago" state="current" />
+          <PaymentStep label="Membresía activada" state="pending" />
         </View>
 
         {viewModel.orderLabel || viewModel.orderTotal ? (
@@ -164,67 +163,6 @@ export function MembershipPaymentResultView({ orderId }: { orderId: string | und
         <Text style={styles.footnote}>Solo damos un pago por aprobado cuando lo confirma el sistema.</Text>
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function Step({ label, state }: { label: string; state: 'done' | 'current' | 'pending' }) {
-  return (
-    <View style={styles.step}>
-      <View
-        style={[
-          styles.stepMark,
-          state === 'done' && styles.stepDone,
-          state === 'current' && styles.stepCurrent,
-        ]}>
-        {state === 'done' ? (
-          <SymbolView name={CHECK_ICON} size={14} tintColor={AppColors.neutral.white} />
-        ) : state === 'current' ? (
-          <View style={styles.stepDot} />
-        ) : null}
-      </View>
-      <Text style={[styles.stepLabel, state === 'pending' && styles.stepLabelPending]}>{label}</Text>
-    </View>
-  );
-}
-
-function TextLink({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      hitSlop={8}
-      style={({ pressed }) => [styles.link, pressed && styles.pressed]}
-      onPress={onPress}>
-      <Text style={styles.linkText}>{label}</Text>
-    </Pressable>
-  );
-}
-
-/** Anillo de carga; se queda quieto si el sistema pide reducir el movimiento. */
-function Spinner({ active }: { active: boolean }) {
-  const reduceMotion = useReduceMotion();
-  const [rotation] = useState(() => new Animated.Value(0));
-
-  useEffect(() => {
-    if (!active || reduceMotion) return;
-    const animation = Animated.loop(
-      Animated.timing(rotation, {
-        toValue: 1,
-        duration: 1100,
-        easing: Easing.linear,
-        useNativeDriver: Platform.OS !== 'web',
-      }),
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [active, reduceMotion, rotation]);
-
-  const rotate = rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-
-  return (
-    <View accessibilityLabel="Verificando pago" accessible style={styles.spinner}>
-      <Animated.View style={[styles.spinnerRing, { transform: [{ rotate }] }]} />
-      <View style={styles.spinnerCore} />
-    </View>
   );
 }
 
@@ -362,29 +300,6 @@ const styles = StyleSheet.create({
     fontSize: AppFontSizes.caption,
     lineHeight: 16,
   },
-  link: { paddingVertical: AppSpacing.two },
-  linkText: {
-    color: AppColors.neutral.muted,
-    fontFamily: AppFonts.label,
-    fontSize: AppFontSizes.label,
-    lineHeight: 20,
-  },
-  spinner: { width: 104, height: 104, alignItems: 'center', justifyContent: 'center' },
-  spinnerRing: {
-    position: 'absolute',
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    borderWidth: 10,
-    borderColor: AppColors.surface.softSelected,
-    borderTopColor: AppColors.brand.primary,
-  },
-  spinnerCore: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: AppColors.surface.default,
-  },
   steps: {
     width: '100%',
     gap: 14,
@@ -394,27 +309,6 @@ const styles = StyleSheet.create({
     backgroundColor: AppColors.surface.default,
     padding: AppSpacing.three,
   },
-  step: { alignItems: 'center', flexDirection: 'row', gap: 12 },
-  stepMark: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 2,
-    borderColor: AppColors.border.default,
-    backgroundColor: AppColors.surface.default,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepDone: { borderWidth: 0, backgroundColor: AppColors.feedback.success },
-  stepCurrent: { borderColor: AppColors.brand.primary },
-  stepDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: AppColors.brand.primary },
-  stepLabel: {
-    color: AppColors.neutral.text,
-    fontFamily: AppFonts.label,
-    fontSize: AppFontSizes.label,
-    lineHeight: 20,
-  },
-  stepLabelPending: { color: AppColors.neutral.muted },
   orderCard: {
     width: '100%',
     alignItems: 'center',

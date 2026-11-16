@@ -1,9 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
-import { SymbolView } from 'expo-symbols';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IconButton } from '@/components/ui/icon-button';
+import { LogoutButton } from '@/components/ui/logout-button';
 import { MenuRow, MenuSection } from '@/components/ui/menu-list';
 import { useAccountViewModel } from '@/features/account/viewmodels/use-account-view-model';
 import { AccountProfileCard } from '@/features/account/views/account-profile-card';
@@ -57,29 +57,7 @@ export function AccountView() {
               </MenuSection>
             ))}
 
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ busy: viewModel.isSigningOut }}
-              disabled={viewModel.isSigningOut}
-              style={({ pressed }) => [styles.logout, pressed && styles.pressed]}
-              onPress={viewModel.confirmLogout}>
-              {viewModel.isSigningOut ? (
-                <ActivityIndicator color={AppColors.brand.primary} />
-              ) : (
-                <>
-                  <SymbolView
-                    name={{
-                      ios: 'rectangle.portrait.and.arrow.right',
-                      android: 'logout',
-                      web: 'logout',
-                    }}
-                    size={18}
-                    tintColor={AppColors.brand.primary}
-                  />
-                  <Text style={styles.logoutText}>CERRAR SESIÓN</Text>
-                </>
-              )}
-            </Pressable>
+            <LogoutButton isSigningOut={viewModel.isSigningOut} onPress={viewModel.confirmLogout} />
           </>
         ) : (
           <GuestAccountCard onLogin={viewModel.openLogin} onRegister={viewModel.openRegister} />
@@ -112,22 +90,6 @@ const styles = StyleSheet.create({
     lineHeight: 44,
   },
   headerButton: { marginRight: -10 },
-  logout: {
-    minHeight: 52,
-    borderWidth: 1,
-    borderColor: AppColors.surface.softSelected,
-    borderRadius: 16,
-    backgroundColor: AppColors.surface.default,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: AppSpacing.two,
-  },
-  logoutText: {
-    color: AppColors.brand.primary,
-    fontFamily: AppFonts.button,
-    fontSize: AppFontSizes.label,
-  },
   footer: {
     color: AppColors.neutral.placeholder,
     fontFamily: AppFonts.body,
@@ -135,5 +97,4 @@ const styles = StyleSheet.create({
     lineHeight: 15,
     textAlign: 'center',
   },
-  pressed: { opacity: 0.75 },
 });

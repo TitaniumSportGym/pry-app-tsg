@@ -12,7 +12,6 @@ import {
   AdminActionBar,
   AdminField,
   AdminSubHeader,
-  PendingSaveNote,
 } from '@/features/admin/views/admin-ui';
 import { OrderStatusBadge } from '@/features/admin/views/order-status-badge';
 import { AppColors, AppFonts, AppFontSizes, AppShadows } from '@/theme/tokens';
@@ -20,6 +19,10 @@ import { AppColors, AppFonts, AppFontSizes, AppShadows } from '@/theme/tokens';
 const OPTION_ICONS: Record<string, SymbolViewProps['name']> = {
   shipped: { ios: 'truck.box', android: 'local_shipping', web: 'local_shipping' },
   incident: { ios: 'exclamationmark.triangle', android: 'warning', web: 'warning' },
+  delivery_failed: { ios: 'xmark.circle', android: 'cancel', web: 'cancel' },
+  ready_for_pickup: { ios: 'bag', android: 'shopping_bag', web: 'shopping_bag' },
+  delivered: { ios: 'checkmark.circle', android: 'check_circle', web: 'check_circle' },
+  picked_up: { ios: 'checkmark.circle', android: 'check_circle', web: 'check_circle' },
   cancelled: { ios: 'xmark.circle', android: 'cancel', web: 'cancel' },
 };
 const DEFAULT_OPTION_ICON: SymbolViewProps['name'] = {
@@ -145,6 +148,7 @@ export function UpdateDeliveryView() {
                     maxLength={viewModel.trackingMaxLength}
                     placeholder="Ej. 7012 3456 7890"
                     required
+                    error={viewModel.trackingError}
                     value={viewModel.trackingNumber}
                     onChangeText={viewModel.setTrackingNumber}
                   />
@@ -176,8 +180,17 @@ export function UpdateDeliveryView() {
         </ScrollView>
 
         <AdminActionBar>
-          <AppButton disabled title="Guardar estado" />
-          <PendingSaveNote />
+          {viewModel.saveError ? (
+            <Text accessibilityRole="alert" style={styles.saveError}>
+              {viewModel.saveError}
+            </Text>
+          ) : null}
+          <AppButton
+            disabled={!viewModel.canSave}
+            loading={viewModel.isSaving}
+            title="Guardar estado"
+            onPress={() => void viewModel.save()}
+          />
           <Pressable accessibilityRole="button" hitSlop={8} onPress={viewModel.goBack}>
             <Text style={styles.cancel}>Cancelar</Text>
           </Pressable>
@@ -188,12 +201,19 @@ export function UpdateDeliveryView() {
 }
 
 const styles = StyleSheet.create({
+  saveError: {
+    color: AppColors.feedback.error,
+    fontFamily: AppFonts.label,
+    fontSize: AppFontSizes.caption,
+    lineHeight: 16,
+    textAlign: 'center',
+  },
   safeArea: { flex: 1, backgroundColor: AppColors.surface.default },
   flex: { flex: 1 },
   content: { gap: 16, paddingHorizontal: 20, paddingBottom: 20 },
   current: {
     borderRadius: 18,
-    backgroundColor: AppColors.surface.soft,
+    backgroundColor: AppColors.surface.input,
     alignItems: 'center',
     flexDirection: 'row',
     gap: 12,
@@ -275,7 +295,7 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   notice: {
     borderRadius: 14,
-    backgroundColor: AppColors.surface.soft,
+    backgroundColor: AppColors.surface.input,
     alignItems: 'center',
     flexDirection: 'row',
     gap: 8,

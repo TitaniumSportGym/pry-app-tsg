@@ -4,7 +4,7 @@ import { summarizePayments } from './admin-dashboard';
 import { formatRelativeDateTime, formatTime, getAvatarInitials, parseAmount, parseDate } from './admin-format';
 import { parseAdminMembers, sortMembersByNewest } from './admin-member';
 import { getAdminMenu } from './admin-more-menu';
-import { getFulfillmentLabel, getFulfillmentTone, getNextStep, getTransitionOptions, parseAdminOrder, parseAdminOrders } from './admin-order';
+import { getFulfillmentLabel, getFulfillmentTone, getNextStep, getTransitionOptions, isInGroup, parseAdminOrder, parseAdminOrders } from './admin-order';
 import { parseShippingRates, sortShippingRates } from './shipping-rate';
 
 describe('Admin contracts with incomplete or future API data', () => {
@@ -44,9 +44,26 @@ describe('Admin contracts with incomplete or future API data', () => {
 
   it.each([
     ['awaiting_payment', 'pending'], ['ready_for_pickup', 'done'], ['delivered', 'done'],
-    ['picked_up', 'done'], ['incident', 'error'], ['cancelled', 'error'], ['preparing', 'progress'],
+    ['picked_up', 'done'], ['incident', 'error'], ['delivery_failed', 'error'], ['cancelled', 'error'], ['preparing', 'progress'],
   ])('uses the correct tone for %s', (status, tone) => {
     expect(getFulfillmentTone(status)).toBe(tone);
+  });
+
+  it.each([
+    ['awaiting_payment', 'Pendiente de pago'], ['incident', 'Incidencia'],
+    ['delivery_failed', 'Entrega no realizada'], ['cancelled', 'Entrega cancelada'],
+  ])('labels %s exactly as the backend contract', (status, label) => {
+    expect(getFulfillmentLabel(status)).toBe(label);
+  });
+
+  it('treats a failed delivery as a problem, never as the next step, and groups it with incidents', () => {
+    const failed = parseAdminOrder(adminOrder('failed', 'shipped', 'delivery', ['delivery_failed', 'delivered']))!;
+    expect(getNextStep(failed)).toEqual({ status: 'delivered', label: 'Marcar entregado' });
+    expect(getTransitionOptions(failed)[0]).toEqual({
+      status: 'delivery_failed', label: 'Entrega no realizada', description: 'La paquetería no pudo entregar.', isProblem: true,
+    });
+    const stuck = parseAdminOrder(adminOrder('stuck', 'delivery_failed', 'delivery', []))!;
+    expect(isInGroup(stuck, 'incident')).toBe(true);
   });
 
   it('ignores malformed payments and uses gross amount only when net is absent', () => {

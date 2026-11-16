@@ -1,5 +1,4 @@
 import { router } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 
 import { createMembershipCheckout } from '@/features/memberships/api/checkout-api';
@@ -9,6 +8,7 @@ import { membershipsRepository } from '@/features/memberships/repositories/membe
 import { paymentsRepository } from '@/features/payments/repositories/payments-repository';
 import { routinesRepository } from '@/features/training/repositories/routines-repository';
 import { useAuth } from '@/hooks/use-auth';
+import { openMercadoPagoCheckout } from '@/services/mercado-pago-browser';
 
 /**
  * "Comprar" for a membership plan, shared by the list and the detail screens.
@@ -37,7 +37,7 @@ export function useMembershipPurchase(area: MembershipArea) {
       try {
         const key = getIdempotencyKey(`membership:${membershipPlanId}`);
         const { checkoutUrl, orderId } = await createMembershipCheckout(membershipPlanId, key);
-        await WebBrowser.openBrowserAsync(checkoutUrl);
+        await openMercadoPagoCheckout(checkoutUrl, 'memberships/payment-result');
         // El pago pudo aprobarse mientras el navegador estaba abierto: las
         // siguientes lecturas van al servidor y las pantallas abiertas (inicio,
         // pagos, rutinas) se recargan solas.

@@ -1,6 +1,7 @@
 import { randomUUID } from 'expo-crypto';
 
 import { ApiError } from '@/types/auth';
+import { isUuid } from '@/utils/uuid';
 
 /**
  * Membership checkout with Mercado Pago Checkout Pro, the same flow the website uses:
@@ -36,11 +37,9 @@ export function isTrustedCheckoutUrl(url: unknown): url is string {
   }
 }
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 /** Ids de orden: solo UUID, para no armar rutas ni URLs con datos inesperados. */
 export function isValidOrderId(id: unknown): id is string {
-  return typeof id === 'string' && UUID_PATTERN.test(id);
+  return isUuid(id);
 }
 
 /**
