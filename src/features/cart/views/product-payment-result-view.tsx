@@ -31,7 +31,7 @@ export function ProductPaymentResultView({ orderId }: { orderId: string | undefi
     : rejected
       ? 'El pago no fue aprobado. Puedes volver a intentar tu compra.'
       : vm.kind === 'invalid'
-        ? 'El identificador del pedido es inválido. Consulta tus pagos desde la cuenta.'
+        ? 'El identificador del pedido es inválido. Consulta tus pedidos desde la cuenta.'
         : vm.kind === 'error'
           ? 'No pudimos consultar el estado de tu pedido. Vuelve a intentarlo.'
           : vm.kind === 'pending'
@@ -68,7 +68,7 @@ export function ProductPaymentResultView({ orderId }: { orderId: string | undefi
         {approved && <Text style={styles.note}>Conserva el número de pedido para cualquier consulta de recogida o envío.</Text>}
         {(vm.kind === 'pending' || vm.kind === 'error') && <AppButton title="Consultar de nuevo" onPress={vm.retry} />}
         <AppButton title={approved ? 'Seguir comprando' : 'Volver a la tienda'} variant={approved ? 'primary' : 'outline'} onPress={vm.openStore} />
-        <AppButton title="Ver mis pagos" variant="outline" onPress={vm.openPayments} />
+        <AppButton title="Ver mis pedidos" variant="outline" onPress={vm.openOrders} />
         <Text style={styles.footer}>El resultado se comprueba en el backend; no se confía en los parámetros de retorno del navegador.</Text>
       </ScrollView>
     </SafeAreaView>
