@@ -11,11 +11,10 @@ export function useMyProductOrders() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
 
-  const refresh = useCallback(() => setVersion((value) => value + 1), []);
+  const refresh = useCallback(() => { setRefreshing(true); setVersion((value) => value + 1); }, []);
   useEffect(() => {
     if (!focused) return;
     let cancelled = false;
-    setRefreshing(true);
     getMyProductOrders().then((result) => {
       if (cancelled) return;
       setOrders(result);
