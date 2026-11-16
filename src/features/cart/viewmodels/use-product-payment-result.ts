@@ -81,7 +81,7 @@ export function useProductPaymentResult(orderId: string | undefined) {
     },
     openStore() { router.replace('/store'); },
     openCart() { router.replace('/cart'); },
-    openPayments() { router.replace('/account/payments'); },
+    openOrders() { router.replace('/account/orders'); },
     goHome() { router.replace('/'); },
   };
 }
