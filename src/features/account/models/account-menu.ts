@@ -115,6 +115,7 @@ const ROLE_SECTIONS: Record<UserRole, AccountMenuSection[]> = {
           id: 'orders',
           label: 'Mis pedidos',
           icon: { ios: 'bag', android: 'shopping_bag', web: 'shopping_bag' },
+          route: '/account/orders',
         },
         {
           id: 'payment-methods',
