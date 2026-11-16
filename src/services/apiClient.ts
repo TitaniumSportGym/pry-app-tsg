@@ -23,7 +23,7 @@ function isFormData(value: unknown): value is FormData {
   return typeof FormData !== "undefined" && value instanceof FormData;
 }
 
-function extractErrorCode(data: unknown): string | undefined {
+export function extractErrorCode(data: unknown): string | undefined {
   if (isPlainObject(data) && typeof data.code === "string") {
     return data.code;
   }
@@ -31,7 +31,7 @@ function extractErrorCode(data: unknown): string | undefined {
   return undefined;
 }
 
-function extractErrorMessage(data: unknown): string {
+export function extractErrorMessage(data: unknown): string {
   if (typeof data === "string") {
     return data;
   }

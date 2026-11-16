@@ -165,6 +165,12 @@ const ROLE_SECTIONS: Record<UserRole, AccountMenuSection[]> = {
       items: [
         profileFor('entrenador'),
         {
+          id: 'trainer-profile',
+          label: 'Perfil de entrenador',
+          icon: { ios: 'person.text.rectangle', android: 'badge', web: 'badge' },
+          route: '/trainer/account/profile',
+        },
+        {
           id: 'memberships',
           label: 'Membresías del gimnasio',
           icon: { ios: 'crown', android: 'workspace_premium', web: 'workspace_premium' },

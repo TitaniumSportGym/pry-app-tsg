@@ -82,6 +82,7 @@ export function getAdminMenu(counts: AdminMenuCounts | null): AdminMenuSection[]
           label: 'Rutinas',
           icon: { ios: 'dumbbell', android: 'fitness_center', web: 'fitness_center' },
           meta: counts ? String(counts.routines) : undefined,
+          route: '/admin/routines',
         },
         {
           id: 'classes',

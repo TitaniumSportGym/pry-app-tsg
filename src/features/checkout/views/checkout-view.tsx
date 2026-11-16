@@ -12,6 +12,7 @@ import { IllustratedEmptyState } from '@/components/ui/illustrated-empty-state';
 import { ProductThumb } from '@/components/ui/product-thumb';
 import { ErrorState } from '@/components/ui/screen-state';
 import { SkeletonBlock, SkeletonGroup } from '@/components/ui/skeleton';
+import { Stepper } from '@/components/ui/stepper';
 import { SubHeader } from '@/components/ui/sub-header';
 import { SurfaceCard } from '@/components/ui/surface-card';
 import {
@@ -60,7 +61,7 @@ export function CheckoutView() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
           <SubHeader subtitle="Elige cómo recibir tus productos" title="FINALIZAR COMPRA" onBack={viewModel.goBack} />
-          <Steps />
+          <Stepper active={0} steps={['Entrega', 'Pago', 'Listo']} />
 
           {viewModel.showSkeleton ? <CheckoutSkeleton /> : null}
           {viewModel.optionsError ? (
@@ -286,22 +287,6 @@ export function CheckoutView() {
   );
 }
 
-function Steps() {
-  return (
-    <View accessibilityLabel="Paso 1 de 3: Entrega" accessible style={styles.steps}>
-      {['Entrega', 'Pago', 'Listo'].map((label, index) => (
-        <View key={label} style={styles.stepGroup}>
-          {index > 0 ? <View style={styles.stepLine} /> : null}
-          <View style={[styles.stepNumber, index === 0 && styles.stepNumberActive]}>
-            <Text style={[styles.stepNumberText, index === 0 && styles.stepNumberTextActive]}>{index + 1}</Text>
-          </View>
-          <Text style={[styles.stepLabel, index === 0 && styles.stepLabelActive]}>{label}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
 interface MethodOptionProps {
   value: DeliveryChoice;
   label: string;
@@ -464,23 +449,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginTop: 6,
   },
-  steps: { alignItems: 'center', flexDirection: 'row', gap: 8 },
-  stepGroup: { alignItems: 'center', flexDirection: 'row', gap: 6 },
-  stepLine: { width: 28, height: 2, borderRadius: 1, backgroundColor: AppColors.border.soft },
-  stepNumber: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 1.5,
-    borderColor: AppColors.border.default,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepNumberActive: { borderWidth: 0, backgroundColor: AppColors.brand.primary },
-  stepNumberText: { color: AppColors.neutral.muted, fontFamily: AppFonts.button, fontSize: 11, lineHeight: 14 },
-  stepNumberTextActive: { color: AppColors.neutral.white },
-  stepLabel: { color: AppColors.neutral.muted, fontFamily: AppFonts.label, fontSize: AppFontSizes.caption, lineHeight: 16 },
-  stepLabelActive: { color: AppColors.neutral.black },
   methods: { flexDirection: 'row', gap: 10 },
   method: {
     flex: 1,
