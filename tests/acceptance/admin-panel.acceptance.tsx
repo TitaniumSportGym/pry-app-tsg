@@ -1,6 +1,6 @@
 import { givenAdminApi, renderAdmin } from '../support/admin-harness';
 
-import { fireEvent, screen, userEvent } from '@testing-library/react-native';
+import { fireEvent, screen, userEvent, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
 import { AdminHomeView } from '../../src/features/admin/views/admin-home-view';
@@ -16,40 +16,56 @@ import { ApiError } from '../../src/types/auth';
 import { adminMember, adminOrder } from '../support/admin-fixtures';
 
 jest.unmock('../../src/features/memberships/api/memberships-api');
+const ORDER_ID = '01139ab5-a809-4fa9-8b41-287da9abb705';
+
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: jest.fn() },
-  useLocalSearchParams: () => ({ id: 'order-1' }),
+  useLocalSearchParams: () => ({ id: '01139ab5-a809-4fa9-8b41-287da9abb705' }),
 }));
+
+const writes = (method: string) =>
+  jest.mocked(apiRequest).mock.calls.filter(([, options]) => options?.method === method);
 
 beforeEach(() => givenAdminApi());
 
 describe('Aceptación simulada — panel del administrador', () => {
   // This suite follows route requests by rerendering the destination with the
   // same provider. admin-navigation.test.tsx separately runs the real navigator.
-  it('CA-ADMIN-01: busco un pedido y preparo su envío sin afirmar que se guardó', async () => {
-    givenAdminApi({ '/api/admin/orders?limit=100': { orders: [
-      adminOrder('order-1', 'packed', 'delivery', ['shipped', 'incident']),
-    ] } });
+  it('CA-ADMIN-01: busco un pedido, registro su envío con paquetería y guía y se guarda', async () => {
+    givenAdminApi({
+      '/api/admin/orders?limit=100': { orders: [adminOrder(ORDER_ID, 'packed', 'delivery', ['shipped', 'incident'])] },
+      [`/api/admin/orders/${ORDER_ID}/fulfillment`]: { ok: true },
+    });
     const view = await renderAdmin(<AdminOrdersView />);
     const user = userEvent.setup();
     await user.press(await screen.findByRole('button', { name: 'Por enviar · 1' }));
-    await user.type(screen.getByPlaceholderText('Buscar por pedido o cliente'), 'TEST-order-1');
+    await user.type(screen.getByPlaceholderText('Buscar por pedido o cliente'), `TEST-${ORDER_ID}`);
     await user.press(screen.getByRole('button', { name: 'Registrar envío' }));
-    expect(router.push).toHaveBeenCalledWith({ pathname: '/admin/delivery/[id]', params: { id: 'order-1' } });
+    expect(router.push).toHaveBeenCalledWith({ pathname: '/admin/delivery/[id]', params: { id: ORDER_ID } });
     await view.rerender(<UpdateDeliveryView />);
     expect(await screen.findByRole('radio', { name: /Enviado/ })).toBeChecked();
     expect(screen.queryByRole('radio', { name: /Entregado/ })).toBeNull();
     await user.press(screen.getByRole('button', { name: 'FedEx' }));
+
+    // Sin guía no se envía nada al backend.
+    await user.press(screen.getByRole('button', { name: 'Guardar estado' }));
+    expect(screen.getByText('Escribe el número de guía.')).toBeOnTheScreen();
+    expect(writes('PATCH')).toHaveLength(0);
+
     await user.type(screen.getByLabelText('Número de guía'), 'SYNTHETIC-123');
     expect(screen.getByLabelText('Número de guía')).toHaveDisplayValue('SYNTHETIC-123');
     const save = screen.getByRole('button', { name: 'Guardar estado' });
-    expect(save).toBeDisabled();
+    expect(save).toBeEnabled();
     await user.press(save);
-    expect(apiRequest).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('Guardar estará disponible cuando el backend lo permita.')).toBeOnTheScreen();
+    await waitFor(() => expect(writes('PATCH')).toHaveLength(1));
+    expect(writes('PATCH')[0]).toEqual([`/api/admin/orders/${ORDER_ID}/fulfillment`, {
+      method: 'PATCH',
+      body: { status: 'shipped', expectedStatus: 'packed', carrier: 'FedEx', trackingNumber: 'SYNTHETIC-123' },
+    }]);
+    expect(router.replace).toHaveBeenCalledWith('/admin/orders');
   });
 
-  it('CA-ADMIN-02: consulto tarifas reales y distingo el formulario local del punto de recogida', async () => {
+  it('CA-ADMIN-02: consulto tarifas reales, abro una nueva y guardo el punto de recogida real', async () => {
     const view = await renderAdmin(<AdminMoreView />);
     const user = userEvent.setup();
     expect(await screen.findByText('1 activa')).toBeOnTheScreen();
@@ -58,19 +74,25 @@ describe('Aceptación simulada — panel del administrador', () => {
     await view.rerender(<ShippingRatesView />);
     expect(await screen.findByText('Zona de prueba')).toBeOnTheScreen();
     expect(screen.getByText('$230.00')).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: 'Nueva tarifa' })).toBeDisabled();
+    await user.press(screen.getByRole('button', { name: 'Nueva tarifa' }));
+    expect(router.push).toHaveBeenCalledWith('/admin/shipping-rate');
     await user.press(screen.getByRole('button', { name: 'Regresar' }));
     expect(router.replace).toHaveBeenCalledWith('/admin/account');
     await view.rerender(<AdminMoreView />);
     await user.press(screen.getByRole('button', { name: 'Punto de recogida' }));
     expect(router.push).toHaveBeenCalledWith('/admin/pickup-point');
     await view.rerender(<PickupPointView />);
-    expect(screen.getByLabelText('Datos de ejemplo')).toBeOnTheScreen();
+
+    // Carga la configuración real (ya no hay datos de ejemplo) y la guarda con PUT.
+    expect(await screen.findByLabelText('Nombre')).toHaveDisplayValue('Gimnasio de prueba');
+    expect(screen.queryByLabelText('Datos de ejemplo')).toBeNull();
     await user.clear(screen.getByLabelText('Nombre'));
     await user.type(screen.getByLabelText('Nombre'), 'Recepción temporal');
-    expect(screen.getByLabelText('Nombre')).toHaveDisplayValue('Recepción temporal');
-    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled();
-    expect(jest.mocked(apiRequest).mock.calls.every(call => call.length === 1 || call[1]?.auth === false)).toBe(true);
+    await user.press(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(writes('PUT')).toHaveLength(1));
+    expect(writes('PUT')[0][0]).toBe('/api/admin/pickup-settings');
+    expect(writes('PUT')[0][1]?.body).toMatchObject({ name: 'Recepción temporal', postalCode: '43000', enabled: true });
+    expect(await screen.findByText('Cambios guardados. El cliente ya ve la nueva información.')).toBeOnTheScreen();
   });
 
   it('CA-ADMIN-03: encuentro socios por correo y recupero la lista al borrar la búsqueda', async () => {

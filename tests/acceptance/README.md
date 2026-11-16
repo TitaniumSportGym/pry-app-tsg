@@ -33,7 +33,7 @@ integración conservan sus nombres, archivos y objetivos.
 | CA-LOGIN-01 | Formulario vacío; corregir y enviar | Se eliminan errores de campos, se normaliza el correo y Más muestra correo, rol Cliente y accesos de la cuenta autenticada. |
 | CA-LOGIN-02 | Credenciales rechazadas; corregir contraseña | Se conserva el correo, se permite reintentar y desaparece el error al acceder a la cuenta. |
 | CA-LOGIN-03 | Cuenta con doble factor; enviar contraseña | Se solicita verificar OTP y la cuenta permanece como visitante. |
-| CA-ROL-01 | Cliente; iniciar, consultar accesos y confirmar cierre de sesión | Solicita `/`; Mi membresía y Membresías Titanium abren `/memberships`. Solo después de confirmar CERRAR SESIÓN desaparecen perfil y accesos privados. |
+| CA-ROL-01 | Cliente; iniciar, consultar accesos y confirmar cierre de sesión | Solicita `/`; Mi membresía abre `/account/membership` (suscripción y estado) y Membresías Titanium abre `/memberships`. Solo después de confirmar CERRAR SESIÓN desaparecen perfil y accesos privados. |
 | CA-ROL-02 | Entrenador; iniciar, abrir membresías/clientes y confirmar salida | Solicita `/trainer`; Membresías del gimnasio abre `/trainer/account/memberships` y Mis clientes abre `/trainer/clients`. Al confirmar salida desaparecen sus opciones. |
 | CA-ROL-03 | Administrador; iniciar, consultar administración y confirmar salida | Solicita `/admin`, ofrece Usuarios/Pagos con sus rutas y no ofrece opciones de membresía de cliente o entrenador; al confirmar salida elimina el perfil. |
 | CA-ROL-04 | Rol desconocido; iniciar sesión | Explica la denegación, revoca la sesión y mantiene la cuenta como visitante. |
