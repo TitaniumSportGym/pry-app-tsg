@@ -26,7 +26,8 @@ jest.mock('expo-router', () => ({
   useIsFocused: jest.fn(() => true),
 }));
 jest.mock('expo-screen-capture', () => ({ usePreventScreenCapture: jest.fn() }));
-jest.mock('expo-web-browser', () => ({ openBrowserAsync: jest.fn() }));
+jest.mock('expo-linking', () => ({ createURL: (path: string) => `pryapptsg://${path}`, openURL: jest.fn() }));
+jest.mock('expo-web-browser', () => ({ openBrowserAsync: jest.fn(), openAuthSessionAsync: jest.fn() }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => 'idempotency-key' }));
 jest.mock('react-native-safe-area-context', () =>
   jest.requireActual('react-native-safe-area-context/jest/mock').default,
@@ -253,13 +254,16 @@ describe('Integración — compra de membresía con Mercado Pago', () => {
       .mocked(createMembershipCheckout)
       .mockResolvedValue({ checkoutUrl: 'https://www.mercadopago.com.mx/checkout', orderId: ORDER_ID });
     jest
-      .mocked(WebBrowser.openBrowserAsync)
-      .mockResolvedValue({ type: 'opened' } as WebBrowser.WebBrowserResult);
+      .mocked(WebBrowser.openAuthSessionAsync)
+      .mockResolvedValue({ type: 'cancel' } as WebBrowser.WebBrowserAuthSessionResult);
     const { result } = await renderHook(() => useMembershipPurchase('client'));
 
     await act(() => result.current.buy('42614bdf-4774-4848-9dff-50fe031f7076'));
 
-    expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith('https://www.mercadopago.com.mx/checkout');
+    expect(WebBrowser.openAuthSessionAsync).toHaveBeenCalledWith(
+      'https://www.mercadopago.com.mx/checkout',
+      expect.stringContaining('memberships/payment-result'),
+    );
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/memberships/payment-result',
       params: { orderId: ORDER_ID },

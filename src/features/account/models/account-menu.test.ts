@@ -25,10 +25,12 @@ describe('menú de la cuenta', () => {
   it('solo habilita opciones que tienen pantalla', () => {
     expect(availableRoutes('cliente')).toEqual([
       '/account/personal-data',
-      '/memberships',
+      '/account/membership',
       '/account/access',
       '/account/access/history',
       '/account/payments',
+      '/account/orders',
+      '/account/addresses',
       '/account/routines',
       '/account/privacy',
       '/account/terms',

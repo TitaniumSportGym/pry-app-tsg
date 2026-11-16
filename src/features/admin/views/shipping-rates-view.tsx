@@ -1,12 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
 import { SymbolView } from 'expo-symbols';
-import { RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui/app-button';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/screen-state';
 import { useShippingRatesViewModel } from '@/features/admin/viewmodels/use-shipping-rates-view-model';
-import { AdminCard, AdminSubHeader, IconTile, PendingSaveNote } from '@/features/admin/views/admin-ui';
+import { AdminCard, AdminSubHeader, IconTile } from '@/features/admin/views/admin-ui';
 import { AppColors, AppFonts, AppFontSizes } from '@/theme/tokens';
 
 const TRUCK = { ios: 'truck.box', android: 'local_shipping', web: 'local_shipping' } as const;
@@ -73,11 +73,12 @@ export function ShippingRatesView() {
                   </Text>
                 </View>
                 <Switch
-                  accessibilityLabel={`${rate.name}, ${rate.statusLabel}. Cambiar estado, próximamente`}
-                  disabled
+                  accessibilityLabel={`${rate.name}, ${rate.statusLabel}`}
+                  disabled={viewModel.busyId !== null}
                   thumbColor={AppColors.neutral.white}
                   trackColor={{ false: AppColors.border.default, true: AppColors.brand.primary }}
                   value={rate.active}
+                  onValueChange={(value) => void viewModel.setActive(rate.id, value)}
                 />
               </View>
               <View style={styles.range}>
@@ -85,17 +86,19 @@ export function ShippingRatesView() {
                 <RangeBox label="CP final" value={rate.to} />
                 <RangeBox dark label="Importe" value={rate.amount} />
               </View>
-              <View
-                accessibilityLabel="Editar tarifa, próximamente"
-                accessible
-                style={styles.editRow}>
+              <Pressable
+                accessibilityLabel={`Editar tarifa ${rate.name}`}
+                accessibilityRole="button"
+                hitSlop={6}
+                style={({ pressed }) => [styles.editRow, pressed && styles.pressed]}
+                onPress={() => viewModel.edit(rate.id)}>
                 <SymbolView
                   name={{ ios: 'pencil', android: 'edit', web: 'edit' }}
                   size={14}
-                  tintColor={AppColors.neutral.placeholder}
+                  tintColor={AppColors.brand.primary}
                 />
                 <Text style={styles.editText}>Editar tarifa</Text>
-              </View>
+              </Pressable>
             </AdminCard>
           ))
         )}
@@ -112,8 +115,12 @@ export function ShippingRatesView() {
           </Text>
         </View>
 
-        <AppButton disabled title="Nueva tarifa" />
-        <PendingSaveNote />
+        {viewModel.actionError ? (
+          <Text accessibilityRole="alert" style={styles.actionError}>
+            {viewModel.actionError}
+          </Text>
+        ) : null}
+        <AppButton title="Nueva tarifa" onPress={viewModel.create} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -201,8 +208,16 @@ const styles = StyleSheet.create({
     gap: 6,
     justifyContent: 'flex-end',
   },
+  pressed: { opacity: 0.7 },
+  actionError: {
+    color: AppColors.feedback.error,
+    fontFamily: AppFonts.label,
+    fontSize: AppFontSizes.caption,
+    lineHeight: 16,
+    textAlign: 'center',
+  },
   editText: {
-    color: AppColors.neutral.placeholder,
+    color: AppColors.brand.primary,
     fontFamily: AppFonts.label,
     fontSize: 13,
     lineHeight: 20,

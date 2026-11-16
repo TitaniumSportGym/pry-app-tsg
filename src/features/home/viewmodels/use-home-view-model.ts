@@ -22,10 +22,12 @@ import { useDelayedFlag } from '@/hooks/use-delayed-flag';
 
 const SKELETON_DELAY_MS = 300;
 
-const ACTION_ROUTES = {
+/** Acciones rápidas con pantalla; las que no aparecen aquí se muestran como "PRONTO". */
+const ACTION_ROUTES: Partial<Record<HomeActionId, '/memberships' | '/store' | '/account/payments'>> = {
   memberships: '/memberships',
+  payments: '/account/payments',
   store: '/store',
-} as const satisfies Partial<Record<HomeActionId, string>>;
+};
 
 export function useHomeViewModel() {
   const { status, user } = useAuth();
@@ -98,9 +100,8 @@ export function useHomeViewModel() {
     },
 
     openAction(actionId: HomeActionId) {
-      if (actionId === 'memberships' || actionId === 'store') {
-        router.push(ACTION_ROUTES[actionId]);
-      }
+      const route = ACTION_ROUTES[actionId];
+      if (route) router.push(route);
     },
     openMemberships() {
       router.push('/memberships');

@@ -1,6 +1,7 @@
 import { isValidOrderId, parseCheckoutResponse } from '@/features/memberships/models/checkout';
 import { parseOrderPaymentStatus } from '@/features/memberships/models/payment-status';
 import { apiRequest } from '@/services/apiClient';
+import { MOBILE_CLIENT } from '@/services/mercado-pago-browser';
 import { ApiError } from '@/types/auth';
 
 /**
@@ -10,7 +11,7 @@ import { ApiError } from '@/types/auth';
 export async function createMembershipCheckout(membershipPlanId: string, idempotencyKey: string) {
   const response = await apiRequest<unknown>('/api/checkout/mercadopago', {
     method: 'POST',
-    body: { idempotencyKey, membershipPlanId },
+    body: { idempotencyKey, membershipPlanId, client: MOBILE_CLIENT },
   });
   const checkout = parseCheckoutResponse(response);
 

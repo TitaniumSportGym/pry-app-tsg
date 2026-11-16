@@ -1,10 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
 import { SymbolView } from 'expo-symbols';
 import { Fragment } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ComingSoonBadge } from '@/components/ui/coming-soon-badge';
+import { LogoutButton } from '@/components/ui/logout-button';
 import type { AdminMenuItem } from '@/features/admin/models/admin-more-menu';
 import { useAdminMoreViewModel } from '@/features/admin/viewmodels/use-admin-more-view-model';
 import {
@@ -71,27 +72,10 @@ export function AdminMoreView() {
               }}
               onOpen={viewModel.open}
             />
-            <View style={styles.divider} />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ busy: viewModel.isSigningOut }}
-              disabled={viewModel.isSigningOut}
-              style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-              onPress={viewModel.confirmLogout}>
-              <IconTile
-                icon={{
-                  ios: 'rectangle.portrait.and.arrow.right',
-                  android: 'logout',
-                  web: 'logout',
-                }}
-                color={AppColors.feedback.error}
-                size={38}
-              />
-              <Text style={[styles.label, styles.logoutLabel]}>Cerrar sesión</Text>
-              {viewModel.isSigningOut ? <ActivityIndicator color={AppColors.feedback.error} /> : null}
-            </Pressable>
           </AdminCard>
         </View>
+
+        <LogoutButton isSigningOut={viewModel.isSigningOut} onPress={viewModel.confirmLogout} />
 
         {viewModel.appVersion ? (
           <Text style={styles.footer}>Titanium Sport Gym · Versión {viewModel.appVersion}</Text>
@@ -164,7 +148,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   labelMuted: { color: AppColors.neutral.muted },
-  logoutLabel: { color: AppColors.feedback.error },
   footer: {
     color: AppColors.neutral.placeholder,
     fontFamily: AppFonts.body,

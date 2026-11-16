@@ -1,20 +1,19 @@
 import { getAvatarInitials, parseAmount, parseDate } from '@/features/admin/models/admin-format';
+import {
+  getFulfillmentLabel,
+  isProblemStatus,
+  type DeliveryMethod,
+  type FulfillmentStatus,
+} from '@/features/orders/models/fulfillment-status';
 
-/** Estado logístico (fulfillment.status). No confundir con el estado del pedido ni del pago. */
-export type FulfillmentStatus =
-  | 'awaiting_payment'
-  | 'payment_confirmed'
-  | 'preparing'
-  | 'ready_for_pickup'
-  | 'packed'
-  | 'shipped'
-  | 'delivered'
-  | 'picked_up'
-  | 'incident'
-  | 'cancelled'
-  | (string & {});
-
-export type DeliveryMethod = 'delivery' | 'pickup';
+// Los estados logísticos son los mismos para el cliente y el administrador.
+export {
+  getFulfillmentLabel,
+  getFulfillmentTone,
+  isProblemStatus,
+  type DeliveryMethod,
+  type FulfillmentStatus,
+} from '@/features/orders/models/fulfillment-status';
 
 export interface AdminOrder {
   id: string;
@@ -83,34 +82,9 @@ export function parseAdminOrders(raw: unknown): AdminOrder[] {
   return raw.map(parseAdminOrder).filter((order): order is AdminOrder => order !== null);
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  awaiting_payment: 'Esperando pago',
-  payment_confirmed: 'Pago confirmado',
-  preparing: 'En preparación',
-  ready_for_pickup: 'Listo para recoger',
-  packed: 'Empaquetado',
-  shipped: 'Enviado',
-  delivered: 'Entregado',
-  picked_up: 'Recogido',
-  incident: 'Incidencia',
-  cancelled: 'Cancelado',
-};
-
-export function getFulfillmentLabel(status: FulfillmentStatus) {
-  return STATUS_LABELS[status] ?? status;
-}
-
-/** Gris: pendiente · Negro: en proceso · Verde: listo/entregado · Rojo: incidencia o cancelado. */
-export function getFulfillmentTone(status: FulfillmentStatus): 'pending' | 'progress' | 'done' | 'error' {
-  if (status === 'awaiting_payment') return 'pending';
-  if (['ready_for_pickup', 'delivered', 'picked_up'].includes(status)) return 'done';
-  if (['incident', 'cancelled'].includes(status)) return 'error';
-  return 'progress';
-}
-
 /** Siguiente paso que el administrador da con el botón principal de la tarjeta. */
 export function getNextStep(order: AdminOrder) {
-  const next = order.allowedTransitions.find((status) => status !== 'incident' && status !== 'cancelled');
+  const next = order.allowedTransitions.find((status) => !isProblemStatus(status));
   if (!next) return null;
   const labels: Record<string, string> = {
     preparing: 'Marcar en preparación',
@@ -131,6 +105,7 @@ const TRANSITION_DESCRIPTIONS: Record<string, string> = {
   delivered: 'La paquetería confirmó la entrega.',
   picked_up: 'El cliente recogió su pedido en recepción.',
   incident: 'Registra un problema con el paquete.',
+  delivery_failed: 'La paquetería no pudo entregar.',
   cancelled: 'El pedido no se entregará.',
 };
 
@@ -140,7 +115,7 @@ export function getTransitionOptions(order: AdminOrder) {
     status,
     label: getFulfillmentLabel(status),
     description: TRANSITION_DESCRIPTIONS[status] ?? '',
-    isProblem: status === 'incident' || status === 'cancelled',
+    isProblem: isProblemStatus(status),
   }));
 }
 
@@ -152,7 +127,7 @@ export const ORDER_GROUPS: { value: OrderGroup; label: string; statuses: Fulfill
   { value: 'ready', label: 'Por recoger', statuses: ['ready_for_pickup'] },
   { value: 'to_ship', label: 'Por enviar', statuses: ['packed'] },
   { value: 'shipped', label: 'Enviados', statuses: ['shipped'] },
-  { value: 'incident', label: 'Incidencias', statuses: ['incident'] },
+  { value: 'incident', label: 'Incidencias', statuses: ['incident', 'delivery_failed'] },
 ];
 
 export function isInGroup(order: AdminOrder, group: OrderGroup) {

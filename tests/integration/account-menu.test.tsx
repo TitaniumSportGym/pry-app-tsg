@@ -77,7 +77,7 @@ describe("Integración — pantalla Más", () => {
     const user = userEvent.setup();
 
     await user.press(await screen.findByRole("button", { name: "Mi membresía" }));
-    expect(router.push).toHaveBeenCalledWith("/memberships");
+    expect(router.push).toHaveBeenCalledWith("/account/membership");
 
     await user.press(screen.getByRole("button", { name: "Pagos y comprobantes" }));
     expect(router.push).toHaveBeenCalledWith("/account/payments");

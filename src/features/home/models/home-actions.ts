@@ -21,7 +21,7 @@ export const HOME_ACTIONS: readonly HomeAction[] = [
     id: 'payments',
     label: 'Mis pagos',
     icon: { ios: 'doc.text.fill', android: 'receipt_long', web: 'receipt_long' },
-    available: false,
+    available: true,
   },
   {
     id: 'store',

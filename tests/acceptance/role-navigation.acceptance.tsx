@@ -35,7 +35,7 @@ describe('Aceptación simulada — navegación y sesión por rol', () => {
     if (role === 'cliente') {
       expect(screen.getByText('Cliente')).toBeOnTheScreen();
       await user.press(screen.getByRole('button', { name: 'Mi membresía' }));
-      expect(router.push).toHaveBeenLastCalledWith('/memberships');
+      expect(router.push).toHaveBeenLastCalledWith('/account/membership');
       await user.press(screen.getByRole('button', { name: 'Membresías Titanium' }));
       expect(router.push).toHaveBeenLastCalledWith('/memberships');
       expect(screen.queryByRole('button', { name: 'Membresías del gimnasio' })).toBeNull();
