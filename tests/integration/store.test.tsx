@@ -287,7 +287,7 @@ describe("Integración — detalle y carrito (pantallas 11 y 12)", () => {
     expect(screen.getByRole("button", { name: "COMPRAR" })).toBeDisabled();
   });
 
-  it("deja el pago como próximamente", async () => {
+  it("permite continuar del carrito al checkout seguro de productos", async () => {
     jest.mocked(getProduct).mockResolvedValue(creatine);
     await renderAsClient(
       <>
@@ -295,10 +295,10 @@ describe("Integración — detalle y carrito (pantallas 11 y 12)", () => {
         <CartView />
       </>,
     );
-
-    await userEvent.setup().press(await screen.findByRole("button", { name: "AGREGAR" }));
-
-    expect(screen.getByLabelText("Pagar, próximamente")).toBeOnTheScreen();
+    const user = userEvent.setup();
+    await user.press(await screen.findByRole("button", { name: "AGREGAR" }));
+    await user.press(screen.getByRole("button", { name: "Continuar a pagar productos" }));
+    expect(router.push).toHaveBeenCalledWith('/checkout/products');
   });
 
   it("no consulta la API cuando el id no es válido", async () => {
