@@ -160,7 +160,8 @@ export function parseClientOrder(raw: unknown): ClientOrder | null {
   if (!isRecord(order) || !isUuid(order.id)) return null;
 
   const items = (Array.isArray(order.items) ? order.items : [])
-    .map(parseItem)
+    // Callback explícito: parseItem recibe el índice, pero no el arreglo que .map() también pasa.
+    .map((item, index) => parseItem(item, index))
     .filter((item): item is OrderItem => item !== null);
   const payments = parsePayments(order.payments);
   const subtotal = amount(order.subtotal) || items.reduce((sum, item) => sum + item.lineTotal, 0);
