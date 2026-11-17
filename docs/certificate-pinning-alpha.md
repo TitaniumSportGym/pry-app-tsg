@@ -25,8 +25,9 @@ a la revisión solicitada por el usuario.
 Evidencia local del Prebuild final en
 `.expo/android-release-kDMOAW/verification.json`, `prebuild.log`, XML y Kotlin
 generados. Es un proyecto aislado ignorado por Git, no un artefacto compilado.
-El manifest generado declara CAMERA/INTERNET y las siete eliminaciones de
-permisos del proyecto, incluidas fotos y video. No se inspeccionó el manifest
+El prebuild comprueba INTERNET, permite CAMERA en main o desde el manifiesto de
+expo-camera instalado y exige que no esté bloqueado por ningún plugin. Conserva
+las siete eliminaciones de permisos del proyecto, incluidas fotos y video. No se inspeccionó el manifest
 fusionado de un AAB/APK. No se ejecutó EAS Build ni se cambió firma o contador.
 
 Las pruebas nuevas validan el snapshot real y las firmas de certificados

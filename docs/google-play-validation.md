@@ -15,7 +15,7 @@ Resultados finales locales del **8 de noviembre de 2026**. Rama `feature/google-
 | `node node_modules/typescript/bin/tsc --noEmit` | Exit 0, sin errores. |
 | `expo install --check` | Dependencias actualizadas y compatibles. |
 | `npx.cmd --yes expo-doctor` | **20/20 comprobaciones aprobadas**. |
-| `node scripts/verify-android-release.cjs` | Prebuild aislado aprobado: target 36, R8/shrink, HTTPS, CAs del sistema y permisos main CAMERA/INTERNET. Sin Gradle ni EAS. |
+| `node scripts/verify-android-release.cjs` | Prebuild aislado: target 36, R8/shrink, HTTPS y CAs del sistema. Corrección del 16/11: INTERNET en main, CAMERA en expo-camera instalado y ausencia de bloqueos de CAMERA; conserva las siete restricciones. Sin Gradle ni EAS; no prueba los permisos del binario. |
 | `node scripts/eas-production.cjs validate` | Aprobado: proyecto/paquete, AAB, API HTTPS, ARCO, versión remota e incremento. |
 | `node scripts/eas-preview.cjs validate` | Aprobado para preview APK. Workflow preview y CI sin diff. |
 | `git diff --check` | Aprobado. Git avisa conversión de LF a CRLF en algunos archivos; no errores de whitespace. |

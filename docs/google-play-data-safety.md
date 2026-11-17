@@ -27,7 +27,7 @@ La clasificación entre recolección, compartición, encargados del tratamiento 
 
 ## Permisos
 
-El Prebuild Release comprueba `CAMERA` e `INTERNET` en el manifiesto main. Cámara se solicita para QR administrativo, con explicación contextual y manejo de denegación. Se conservan bloqueos de micrófono, almacenamiento externo, superposiciones y vibración. No se añaden ubicación, contactos, SMS o notificaciones.
+El verificador Release comprueba `INTERNET` en el manifiesto main del prebuild y `CAMERA` sin límite de SDK en el manifiesto de `expo-camera` instalado. Acepta que `CAMERA` aparezca también en main y rechaza cualquier regla que lo elimine, incluida la creada por `expo-image-picker` con `cameraPermission: false`. No simula la fusión de Gradle ni confirma los permisos del binario. Cámara se solicita para QR administrativo, con explicación contextual y manejo de denegación. Se conservan los siete bloqueos de micrófono, almacenamiento externo, superposiciones, vibración y lectura de imágenes/video. No se añaden ubicación, contactos, SMS o notificaciones.
 
 El manifiesto fusionado y los SDKs del AAB todavía requieren inspección: Prebuild no ejecuta Gradle. Revisar también permisos aportados por dependencias, 64 bits y bibliotecas de páginas de memoria de 16 KB.
 
