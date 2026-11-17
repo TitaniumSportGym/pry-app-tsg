@@ -48,13 +48,9 @@
     "typescript": "~6.0.3"
   },
   "overrides": {
-    "glob@>=9.0.0 <14.0.2": "14.0.6",
-    "minimatch@>=7.0.0 <11.0.1": "11.0.8",
-    "test-exclude@^7.0.0": {
-      ".": "8.0.0",
-      "glob": "14.0.6",
-      "minimatch": "11.0.8"
-    },
+    "glob@>=9.0.0 <15.0.0": "14.0.6",
+    "minimatch@>=7.0.0 <12.0.0": "11.0.8",
+    "test-exclude@>=7.0.0 <9.0.0": "8.0.0",
     "jest-config": {
       "deepmerge": "$deepmerge"
     }
