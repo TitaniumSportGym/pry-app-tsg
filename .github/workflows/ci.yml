@@ -17,6 +17,10 @@ on:
       - develop
 
 jobs:
+  lockfile:
+    name: Consistencia del lockfile con EAS y CI
+    uses: ./.github/workflows/dependency-install.yml
+
   analisis-estatico:
     name: Análisis estático (ESLint y TypeScript)
     runs-on: ubuntu-latest

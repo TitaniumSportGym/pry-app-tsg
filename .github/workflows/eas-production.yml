@@ -11,8 +11,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  lockfile:
+    name: Instalación compatible con EAS antes de solicitar AAB
+    uses: ./.github/workflows/dependency-install.yml
+
   calidad:
     name: Validar aplicación antes de solicitar AAB
+    needs: [lockfile]
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:

@@ -11,8 +11,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  lockfile:
+    name: Instalación compatible con EAS antes de solicitar APK
+    uses: ./.github/workflows/dependency-install.yml
+
   calidad:
     name: Calidad antes de solicitar la APK
+    needs: [lockfile]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

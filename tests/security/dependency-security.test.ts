@@ -15,6 +15,50 @@ const lockfile = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package-lock
 const lockedMinimatch = Object.entries(lockfile.packages as Record<string, { version: string }>)
   .filter(([location]) => /(^|\/)node_modules\/minimatch$/.test(location));
 const vulnerableMinimatch = (version: string) => satisfies(version, '>=7.0.0 <11.0.1', { includePrerelease: true });
+const manifest = load('../../package.json');
+const yaml = load('js-yaml');
+
+describe('npm 10/11 override and install compatibility', () => {
+  it.each([
+    ['glob', '7.2.3'], ['minimatch', '3.1.5'], ['test-exclude', '6.0.0'],
+  ])('keeps the %s selector applicable after replacement without overriding its legacy API', (name, legacy) => {
+    const rules = Object.entries(manifest.overrides).filter(([key]) => key.startsWith(`${name}@`));
+    expect(rules).toHaveLength(1);
+    const [key, replacement] = rules[0];
+    // npm 10 reevaluates an already overridden edge.spec; npm 11 uses rawSpec.
+    // Keep this project's approved selectors stable under either evaluation.
+    expect(typeof replacement).toBe('string');
+    const range = key.slice(name.length + 1);
+    expect(satisfies(replacement, range)).toBe(true);
+    expect(satisfies(legacy, range)).toBe(false);
+  });
+
+  it('runs strict clean installs on Linux with both observed toolchains and no install cache', () => {
+    const workflow = yaml.load(fs.readFileSync(path.join(projectRoot, '.github/workflows/dependency-install.yml'), 'utf8'));
+    expect(Object.keys(workflow.on)).toEqual(['workflow_call']);
+    const job = workflow.jobs.install;
+    expect(job['runs-on']).toBe('ubuntu-latest');
+    expect(job.strategy.matrix.include).toEqual([
+      { node: '22.23.2', npm: '10.9.9' }, { node: '24.22.2', npm: '11.19.1' },
+    ]);
+    const commands = job.steps.map((step: { run?: string }) => step.run ?? '');
+    expect(commands).toContain('npm ci --include=dev');
+    expect(commands).toContain('git diff --exit-code -- package.json package-lock.json');
+    expect(commands).toContain('npm ls minimatch glob test-exclude --all');
+    expect(commands.some((command: string) => command.includes('--runTestsByPath tests/security/dependency-security.test.ts'))).toBe(true);
+    expect(commands.join('\n')).not.toMatch(/--legacy-peer-deps|--force|--ignore-scripts|--package-lock=false/);
+    expect(job.steps.some((step: { uses?: string }) => step.uses?.startsWith('actions/cache'))).toBe(false);
+  });
+
+  it.each(['ci', 'eas-preview', 'eas-production'])('requires the install preflight in %s', name => {
+    const workflow = yaml.load(fs.readFileSync(path.join(projectRoot, `.github/workflows/${name}.yml`), 'utf8'));
+    expect(workflow.jobs.lockfile.uses).toBe('./.github/workflows/dependency-install.yml');
+    if (name !== 'ci') {
+      expect(workflow.jobs.calidad.needs).toContain('lockfile');
+      expect([workflow.jobs.build.needs].flat()).toContain('calidad');
+    }
+  });
+});
 
 describe('GHSA-g3hv-75wg-m249: every minimatch installation', () => {
   it('rejects vulnerable versions anywhere in the lockfile, including nested dependencies', () => {
