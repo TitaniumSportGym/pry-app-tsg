@@ -9,6 +9,34 @@ const merge = fromJest('deepmerge');
 const fromExpo = createRequire(load.resolve('@expo/fingerprint'));
 const glob = fromExpo('glob');
 const minimatch = fromExpo('minimatch');
+const { satisfies, valid } = load('semver');
+const projectRoot = path.resolve(__dirname, '../..');
+const lockfile = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package-lock.json'), 'utf8'));
+const lockedMinimatch = Object.entries(lockfile.packages as Record<string, { version: string }>)
+  .filter(([location]) => /(^|\/)node_modules\/minimatch$/.test(location));
+const vulnerableMinimatch = (version: string) => satisfies(version, '>=7.0.0 <11.0.1', { includePrerelease: true });
+
+describe('GHSA-g3hv-75wg-m249: every minimatch installation', () => {
+  it('rejects vulnerable versions anywhere in the lockfile, including nested dependencies', () => {
+    expect(lockedMinimatch.length).toBeGreaterThan(0);
+    expect(lockedMinimatch.filter(([, entry]) => !valid(entry.version) || vulnerableMinimatch(entry.version)))
+      .toEqual([]);
+  });
+
+  it.each(lockedMinimatch)('matches the clean installed version to the lockfile: %s', (location, entry) => {
+    const installed = JSON.parse(fs.readFileSync(path.join(projectRoot, location, 'package.json'), 'utf8'));
+    expect(installed.version).toBe(entry.version);
+    expect(vulnerableMinimatch(installed.version)).toBe(false);
+  });
+
+  it.each(['7.0.0', '8.0.0', '9.0.9', '10.2.6', '11.0.0'])('rejects affected boundary or nested version %s', version => {
+    expect(vulnerableMinimatch(version)).toBe(true);
+  });
+
+  it.each(['3.1.5', '6.2.0', '11.0.1', '11.0.8', '12.0.0'])('keeps versions outside this advisory range: %s', version => {
+    expect(vulnerableMinimatch(version)).toBe(false);
+  });
+});
 
 it('Jest resolves the reviewed local replacement, including its .all API', () => {
   expect(fs.realpathSync(fromJest.resolve('deepmerge')))
@@ -124,5 +152,38 @@ describe('glob/minimatch contracts used by Expo, Jest and ESLint', () => {
     await expect(glob.glob('**/*', { cwd: directory, signal: controller.signal, fs: customFs })).rejects.toBe(reason);
     await new Promise(resolve => setTimeout(resolve, 30));
     expect(readsAfterAbort).toBe(0);
+  });
+
+  const testExcludeLocations = Object.keys(lockfile.packages).filter(location => /(^|\/)node_modules\/test-exclude$/.test(location));
+  it.each(testExcludeLocations)('preserves test-exclude filtering and sync/async traversal: %s', async location => {
+    const TestExclude = load(path.join(projectRoot, location));
+    const fromFilter = createRequire(path.join(projectRoot, location, 'package.json'));
+    const filterVersion = fromFilter('./package.json').version;
+    if (filterVersion.startsWith('6.')) {
+      expect(fromFilter('minimatch/package.json').version).toMatch(/^3\./);
+      expect(fromFilter('glob/package.json').version).toMatch(/^7\./);
+      expect(typeof fromFilter('minimatch')).toBe('function');
+    } else {
+      expect(filterVersion).toBe('8.0.0');
+      expect(fromFilter('minimatch/package.json').version).toBe('11.0.8');
+      expect(fromFilter('glob/package.json').version).toBe('14.0.6');
+    }
+    const filter = new TestExclude({
+      cwd: directory, include: ['src/**/*.{ts,tsx}'], exclude: ['**/config/**'], extension: ['.ts', '.tsx'],
+    });
+    expect(filter.shouldInstrument(path.join(directory, 'src/app/(tabs)/index.tsx'))).toBe(true);
+    expect(filter.shouldInstrument(path.join(directory, 'src/app/[id].tsx'))).toBe(true);
+    expect(filter.shouldInstrument(path.join(directory, 'src/config/env.ts'))).toBe(false);
+    expect(filter.shouldInstrument(path.join(directory, 'node_modules/ignored.ts'))).toBe(false);
+    expect(filter.shouldInstrument(path.join(directory, '../outside.ts'))).toBe(false);
+    const expected = ['src/app/(tabs)/index.tsx', 'src/app/[id].tsx'];
+    const normalize = (files: string[]) => files.map(file => file.replace(/\\/g, '/')).sort();
+    expect(normalize(filter.globSync())).toEqual(expected);
+    expect(normalize(await filter.glob())).toEqual(expected);
+    const negated = new TestExclude({
+      cwd: directory, include: ['src/**'], exclude: ['src/**', '!src/app/**'], extension: ['.ts', '.tsx'],
+    });
+    expect(negated.shouldInstrument(path.join(directory, 'src/app/[id].tsx'))).toBe(true);
+    expect(negated.shouldInstrument(path.join(directory, 'src/config/env.ts'))).toBe(false);
   });
 });
