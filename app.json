@@ -36,6 +36,7 @@
     "plugins": [
       "expo-router",
       "./plugins/with-network-security.cjs",
+      "./plugins/with-optional-portrait-hardware.cjs",
       [
         "expo-image-picker",
         {
