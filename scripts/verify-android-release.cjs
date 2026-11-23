@@ -7,7 +7,9 @@ const { createHash } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { parseArgs } = require('node:util');
+const { AndroidConfig } = require('expo/config-plugins');
 const { readManifest, verifyPrebuildPermissions, verifyMergedPermissions } = require('./android-permissions.cjs');
+const { verifyOptionalPortraitFeature } = require('./android-features.cjs');
 const { PROFILES, getSettings, configureApp, readConfig } = require('../config/alpha-pinning.cjs');
 const { policiesForAlpha } = require('../plugins/with-network-security.cjs');
 const { certificatePinnerSource } = require('../plugins/alpha-certificate-pinner.cjs');
@@ -18,6 +20,7 @@ const readJson = (file) => JSON.parse(fs.readFileSync(path.join(projectRoot, fil
 async function verifyAndroidRelease(profileName = 'production', mergedManifestPath) {
   const app = readJson('app.json');
   const eas = readJson('eas.json');
+  assert.equal(app.expo.orientation, 'portrait', 'Conservar la orientación vertical de la aplicación.');
   assert.ok(PROFILES.includes(profileName));
   const settings = readConfig();
   const environment = { ...process.env, CI: '1', EXPO_OFFLINE: '1', EXPO_NO_TELEMETRY: '1', EXPO_NO_DOTENV: '1',
@@ -107,17 +110,25 @@ async function verifyAndroidRelease(profileName = 'production', mergedManifestPa
   const prebuildManifestPath = path.join(nativeRoot, 'app', 'src', 'main', 'AndroidManifest.xml');
   const cameraPackagePath = require.resolve('expo-camera/package.json');
   const cameraManifestPath = path.join(path.dirname(cameraPackagePath), 'android', 'src', 'main', 'AndroidManifest.xml');
-  const permissionEvidence = verifyPrebuildPermissions(await readManifest(prebuildManifestPath),
+  const prebuildManifest = await readManifest(prebuildManifestPath);
+  const portraitHardwareFeature = verifyOptionalPortraitFeature(prebuildManifest);
+  const portraitEntry = prebuildManifest.manifest['uses-feature'].find(entry => entry.$['android:name'] === portraitHardwareFeature.name);
+  assert.equal(portraitEntry.$['tools:replace'], 'android:required', 'Conservar el valor opcional al fusionar bibliotecas.');
+  assert.equal(prebuildManifest.manifest.$['xmlns:tools'], 'http://schemas.android.com/tools');
+  assert.equal(AndroidConfig.Manifest.getMainActivityOrThrow(prebuildManifest).$['android:screenOrientation'], 'portrait');
+  const permissionEvidence = verifyPrebuildPermissions(prebuildManifest,
     await readManifest(cameraManifestPath), app.expo.android.blockedPermissions);
   let mergedManifest = null;
   if (mergedManifestPath) {
     const file = path.resolve(mergedManifestPath);
     assert.notEqual(fs.realpathSync(file), fs.realpathSync(prebuildManifestPath), 'No usar el main del prebuild como manifiesto fusionado.');
     assert.notEqual(fs.realpathSync(file), fs.realpathSync(cameraManifestPath), 'No usar el manifiesto de expo-camera como fusionado.');
+    const mergedDocument = await readManifest(file);
     mergedManifest = {
       path: file,
       sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
-      permissions: verifyMergedPermissions(await readManifest(file), app.expo.android.blockedPermissions),
+      permissions: verifyMergedPermissions(mergedDocument, app.expo.android.blockedPermissions),
+      portraitHardwareFeature: verifyOptionalPortraitFeature(mergedDocument),
       provenanceVerified: false,
     };
   }
@@ -139,7 +150,8 @@ async function verifyAndroidRelease(profileName = 'production', mergedManifestPa
     buildProperties: require('expo-build-properties/package.json').version,
     sourceHashes: Object.fromEntries(['app.json', 'app.config.js', 'eas.json', 'package.json', 'package-lock.json',
       'config/alpha-pinning-public-chain.json', 'config/alpha-pinning.cjs', 'plugins/with-network-security.cjs',
-      'plugins/alpha-certificate-pinner.cjs', 'scripts/verify-android-release.cjs', 'scripts/android-permissions.cjs'].map((file) => [
+      'plugins/alpha-certificate-pinner.cjs', 'plugins/with-optional-portrait-hardware.cjs',
+      'scripts/verify-android-release.cjs', 'scripts/android-permissions.cjs', 'scripts/android-features.cjs'].map((file) => [
       file, createHash('sha256').update(fs.readFileSync(path.join(projectRoot, file))).digest('hex'),
     ])),
     snapshot: path.relative(projectRoot, snapshot),
@@ -165,6 +177,8 @@ async function verifyAndroidRelease(profileName = 'production', mergedManifestPa
       sha256: createHash('sha256').update(fs.readFileSync(cameraManifestPath)).digest('hex'),
     },
     mergedManifest,
+    portraitHardwareFeature,
+    suppliedMergedManifestPortraitVerified: Boolean(mergedManifest),
     suppliedMergedManifestPermissionsVerified: Boolean(mergedManifest),
     mergedBinaryPermissionsVerified: false,
     proguardPreset: 'proguard-android-optimize.txt',
