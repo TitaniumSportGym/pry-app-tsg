@@ -21,9 +21,13 @@ function verifyReassure(directory = '.reassure', expected = {}) {
     assert.equal(entries.length, jest.numTotalTests, `${side}: faltan escenarios medidos`);
     assert.equal(new Set(entries.map((entry) => entry.name)).size, entries.length, `${side}: nombres duplicados`);
     for (const entry of entries) {
-      assert.ok(entry.runs > 1 && entry.durations.length === entry.runs && entry.counts.length === entry.runs,
+      // Reassure keeps every render count but moves filtered timing samples to
+      // outlierDurations. Those samples were measured, not skipped or lost.
+      const outliers = entry.outlierDurations ?? [];
+      assert.ok(Number.isInteger(entry.runs) && entry.runs > 1 && entry.durations.length > 1 &&
+        entry.durations.length + outliers.length === entry.runs && entry.counts.length === entry.runs,
         `${side}: muestras incompletas en ${entry.name}`);
-      assert.ok(entry.durations.every((duration) => Number.isFinite(duration) && duration > 0),
+      assert.ok([...entry.durations, ...outliers].every((duration) => Number.isFinite(duration) && duration > 0),
         `${side}: duraciones inválidas en ${entry.name}`);
     }
     measurements[side] = { header, entries };

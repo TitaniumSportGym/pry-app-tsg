@@ -2,6 +2,7 @@ import { createRequire } from 'node:module';
 import * as fs from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 const load = createRequire(__filename);
 const { verifyReassure } = load('../../scripts/verify-reassure.cjs');
@@ -57,6 +58,27 @@ describe('Reassure CI: evidencia completa y línea base verificable', () => {
     expect(() => verifyReassure(directory)).toThrow('faltan escenarios');
   });
 
+  it('acepta muestras atípicas registradas por Reassure sin contarlas como pruebas omitidas', () => {
+    const file = path.join(directory, 'current.perf');
+    const [header, entry] = fs.readFileSync(file, 'utf8').trim().split(/\r?\n/).map(line => JSON.parse(line));
+    fs.writeFileSync(file, `${JSON.stringify(header)}\n${JSON.stringify({
+      ...entry, runs: 3, counts: [1, 1, 1], outlierDurations: [10],
+    })}\n`);
+    expect(verifyReassure(directory)).toBe(1);
+  });
+
+  it.each([
+    { runs: 3, counts: [1, 1, 1] },
+    { runs: 3, outlierDurations: [10] },
+    { runs: 3, counts: [1, 1, 1], outlierDurations: [-1] },
+    { runs: 3, counts: [1, 1, 1], outlierDurations: [null] },
+  ])('rechaza datos perdidos o muestras atípicas inválidas: %j', (change) => {
+    const file = path.join(directory, 'current.perf');
+    const [header, entry] = fs.readFileSync(file, 'utf8').trim().split(/\r?\n/).map(line => JSON.parse(line));
+    fs.writeFileSync(file, `${JSON.stringify(header)}\n${JSON.stringify({ ...entry, ...change })}\n`);
+    expect(() => verifyReassure(directory)).toThrow();
+  });
+
   it.each(['errors', 'warnings', 'added', 'removed'])('rechaza una comparación con %s', (key) => {
     write('output.json', { ...read('output.json'), [key]: ['incompleto'] });
     expect(() => verifyReassure(directory)).toThrow('Comparación incompleta');
@@ -83,5 +105,47 @@ describe('Reassure CI: evidencia completa y línea base verificable', () => {
     expect(verifyReassure(directory)).toBe(1);
     write('output.json', { ...report, countChanged: [{ name: 'contraseña', countDiff: 1 }] });
     expect(() => verifyReassure(directory)).toThrow('Aumento de renders');
+  });
+
+  it.each(['complete', 'outlier', 'incomplete', 'regression'])('propaga a CI el código de salida correcto: %s', (scenario) => {
+    if (scenario === 'outlier') {
+      const file = path.join(directory, 'current.perf');
+      const [header, entry] = fs.readFileSync(file, 'utf8').trim().split(/\r?\n/).map(line => JSON.parse(line));
+      fs.writeFileSync(file, `${JSON.stringify(header)}\n${JSON.stringify({
+        ...entry, runs: 3, counts: [1, 1, 1], outlierDurations: [10],
+      })}\n`);
+    }
+    if (scenario === 'incomplete') fs.unlinkSync(path.join(directory, 'baseline.perf'));
+    if (scenario === 'regression') {
+      write('output.json', { ...read('output.json'), meaningless: [],
+        significant: [{ name: 'contraseña', durationDiff: 1 }] });
+    }
+    const result = spawnSync(process.execPath, [path.resolve(__dirname, '../../scripts/verify-reassure.cjs'), directory], {
+      encoding: 'utf8',
+      env: { ...process.env, REASSURE_BASE_SHA: 'baseline', REASSURE_CURRENT_SHA: 'current' },
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(['complete', 'outlier'].includes(scenario) ? 0 : 1);
+  });
+
+  it('ejecuta el verificador en Actions con el SHA exacto del destino y conserva las evidencias', () => {
+    const yaml = load('js-yaml');
+    const workflow = yaml.load(fs.readFileSync(path.resolve(__dirname, '../../.github/workflows/ci.yml'), 'utf8'));
+    const job = workflow.jobs['pruebas-rendimiento'];
+    const baseline = job.steps.find((step: { id?: string }) => step.id === 'linea-base');
+    const compare = job.steps.find((step: { id?: string }) => step.id === 'comparar');
+    expect(job['runs-on']).toBe('ubuntu-latest');
+    expect(baseline.env.BASE_SHA).toBe('${{ github.event.pull_request.base.sha }}');
+    expect(baseline.run).toContain('git worktree add --detach "$BASELINE_DIR" "$BASE_SHA"');
+    expect(baseline.run).toContain('cp -R tests/performance/.');
+    expect(baseline.run).not.toContain('BASELINE_BRANCH="develop"');
+    expect(compare.env.REASSURE_BASE_SHA).toBe('${{ github.event.pull_request.base.sha }}');
+    expect(compare.run).toContain('set -euo pipefail');
+    expect(compare.run).toContain('node scripts/verify-reassure.cjs');
+    expect(compare['continue-on-error']).not.toBe(true);
+    const artifact = job.steps.find((step: { uses?: string }) => step.uses?.startsWith('actions/upload-artifact@'));
+    expect(artifact.if).toBe('always()');
+    expect(artifact.with['include-hidden-files']).toBe(true);
+    expect(artifact.with['if-no-files-found']).toBe('error');
   });
 });
