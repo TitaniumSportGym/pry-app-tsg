@@ -7,6 +7,8 @@ interface SearchFieldProps {
   value: string;
   placeholder: string;
   maxLength: number;
+  /** "outlined" is the white field with a border used over pink backgrounds. */
+  variant?: 'filled' | 'outlined';
   onChangeText: (value: string) => void;
   onSubmit?: () => void;
 }
@@ -15,11 +17,12 @@ export function SearchField({
   value,
   placeholder,
   maxLength,
+  variant = 'filled',
   onChangeText,
   onSubmit,
 }: SearchFieldProps) {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, variant === 'outlined' && styles.outlined]}>
       <SymbolView
         name={{ ios: 'magnifyingglass', android: 'search', web: 'search' }}
         size={20}
@@ -64,6 +67,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: AppSpacing.two,
     paddingHorizontal: AppSpacing.three,
+  },
+  outlined: {
+    minHeight: 50,
+    borderWidth: 1,
+    borderColor: AppColors.border.soft,
+    backgroundColor: AppColors.surface.default,
   },
   input: {
     flex: 1,

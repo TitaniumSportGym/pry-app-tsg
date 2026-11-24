@@ -17,12 +17,17 @@ export const AppColors = {
     soft: '#FFF6F5',
     softSelected: '#FDE5E2',
     muted: '#F3F1F0',
+    input: '#F3F3F4',
     dark: '#101010',
     darkElevated: '#1A1A1A',
     darkSelected: '#2B2B2B',
   },
   overlay: {
     whiteMuted: 'rgba(255, 255, 255, 0.38)',
+    /** Fondo de botones de icono sobre la cámara o sobre fondos oscuros. */
+    whiteSoft: 'rgba(255, 255, 255, 0.12)',
+    /** Oscurece la cámara cuando aparece una hoja inferior encima. */
+    scrim: 'rgba(16, 16, 16, 0.6)',
   },
   border: {
     default: '#C9C6C2',
@@ -41,6 +46,10 @@ export const AppColors = {
     warning: '#B54708',
     warningSoft: '#FEF0C7',
   },
+} as const;
+
+export const AppShadows = {
+  card: '0 5px 14px rgba(15, 15, 15, 0.08)',
 } as const;
 
 export const AppFonts = {

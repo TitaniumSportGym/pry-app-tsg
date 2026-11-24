@@ -4,7 +4,10 @@ import { canIncrease, getCartCount, getCartTotal } from '@/features/cart/models/
 import { formatProductPrice } from '@/features/store/models/product';
 import { useCart } from '@/hooks/use-cart';
 
-/** Screen 12 · Carrito. Only signed-in users can open it; payment (screen 13) does not exist yet. */
+/**
+ * Pantalla 12 · Carrito. Solo usuarios con sesión. El subtotal es una referencia: el total
+ * definitivo (con envío) lo calcula el backend en Finalizar compra.
+ */
 export function useCartViewModel() {
   const cart = useCart();
   const count = getCartCount(cart.items);
@@ -13,7 +16,10 @@ export function useCartViewModel() {
     requiresLogin: !cart.isAvailable,
     isEmpty: cart.items.length === 0,
     count,
-    countLabel: `Total (${count} ${count === 1 ? 'producto' : 'productos'})`,
+    countLabel: `Subtotal (${count} ${count === 1 ? 'producto' : 'productos'})`,
+    checkout() {
+      router.push('/cart/checkout');
+    },
     total: formatProductPrice(getCartTotal(cart.items)),
     items: cart.items.map((item) => ({
       id: item.productId,

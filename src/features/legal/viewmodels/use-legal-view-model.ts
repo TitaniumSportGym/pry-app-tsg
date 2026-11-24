@@ -11,20 +11,24 @@ import {
 } from '@/features/legal/models/legal-content';
 import { useAuth } from '@/hooks/use-auth';
 
-export function useLegalViewModel(document: LegalDocument) {
-  const { role } = useAuth();
+export function useLegalViewModel(document: LegalDocument, { fromRegistration = false } = {}) {
+  const { role, status } = useAuth();
   const routes = getLegalRoutes(role);
 
   return {
     document,
     terms: TERMS,
     privacy: PRIVACY,
+    canManagePrivacy: status === 'authenticated' && role !== null,
+    openPrivacyRights() {
+      if (status === 'authenticated' && role) router.push(routes.rights);
+    },
     openPrivacy() {
       router.push(routes.privacy);
     },
     goBack() {
       if (router.canGoBack()) router.back();
-      else router.replace(routes.parent);
+      else router.replace(fromRegistration ? '/register' : routes.parent);
     },
     async contactArco() {
       try {

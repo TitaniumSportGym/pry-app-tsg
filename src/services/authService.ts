@@ -1,3 +1,5 @@
+import type { ConsentAcceptance } from '@/features/privacy/models/arco-contracts';
+
 import {
     ApiError,
     type AuthResult,
@@ -13,6 +15,7 @@ import {
 import { apiRequest, shouldInvalidateSession } from "./apiClient";
 import {
     getAccessToken,
+    invalidateAccessToken,
     removeAccessToken,
     saveAccessToken,
 } from "./sessionService";
@@ -20,14 +23,21 @@ import {
 export async function registerMobile(
   email: string,
   password: string,
+  privacyConsent?: ConsentAcceptance,
 ): Promise<RegisterResponse> {
-  const body: RegisterRequest = { email, password, client: "mobile" };
+  const body: RegisterRequest = { email, password, client: "mobile", ...(privacyConsent ? { privacyConsent } : {}) };
 
-  return apiRequest<RegisterResponse>("/api/auth/register", {
+  let receivedStatus = 0;
+  const response = await apiRequest<RegisterResponse>("/api/auth/register", {
     method: "POST",
     body,
     auth: false,
+    ...(privacyConsent ? { onResponse: (metadata: { status: number }) => { receivedStatus = metadata.status; } } : {}),
   });
+  if (privacyConsent && receivedStatus !== 201) {
+    throw new ApiError("No se confirmó el registro con evidencia de consentimiento.", 502, undefined, "INVALID_ARCO_RESPONSE");
+  }
+  return response;
 }
 
 export async function verifyAccountOtp(
@@ -68,11 +78,7 @@ export async function login(
     auth: false,
   });
 
-  if (response.twoFactorRequired === true) {
-    return response;
-  }
-
-  if (response.accessToken) {
+  if (response.twoFactorRequired !== true && response.accessToken) {
     await saveAccessToken(response.accessToken);
   }
 
@@ -100,7 +106,7 @@ export async function logout(): Promise<void> {
   const token = await getAccessToken();
 
   if (!token) {
-    await removeAccessToken();
+    await invalidateAccessToken(null);
     return;
   }
 
@@ -108,11 +114,12 @@ export async function logout(): Promise<void> {
     await apiRequest("/api/auth/logout", {
       method: "POST",
       auth: true,
+      expectedAccessToken: token,
     });
   } catch {
     // Ignore server-side auth failures; local session should still be cleared.
   } finally {
-    await removeAccessToken();
+    await invalidateAccessToken(token);
   }
 }
 
@@ -136,7 +143,7 @@ export async function restoreSession(): Promise<AuthResult> {
   } catch (error) {
     if (error instanceof ApiError) {
       if (shouldInvalidateSession(error.status, error.data)) {
-        await removeAccessToken();
+        if (!error.sessionInvalidationHandled) await removeAccessToken();
         return { authenticated: false };
       }
 

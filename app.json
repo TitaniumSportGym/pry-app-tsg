@@ -1,7 +1,6 @@
-
 {
   "expo": {
-    "name": "pry-app-tsg",
+    "name": "Titanium Sport Gym",
     "slug": "pry-app-tsg",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,8 +12,17 @@
     },
     "android": {
       "package": "com.titaniumsportgym.app",
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.VIBRATE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO"
+      ],
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -27,16 +35,50 @@
     },
     "plugins": [
       "expo-router",
-          [
+      "./plugins/with-network-security.cjs",
+      "./plugins/with-optional-portrait-hardware.cjs",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Titanium usa tus fotos y videos solo para subir la portada de tus rutinas, los videos de los ejercicios y tu foto de perfil.",
+          "cameraPermission": "Titanium Sport Gym usa la cámara para escanear el código QR de acceso de los socios.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "targetSdkVersion": 36,
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#EF3C33",
-          "image": "./assets/images/icon.png",
+          "image": "./assets/images/splash-logo.png",
           "imageWidth": 200,
-          "resizeMode": "contain"
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#EF3C33",
+            "image": "./assets/images/splash-logo.png"
+          }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-video",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Titanium Sport Gym usa la cámara para escanear el código QR de acceso de los socios.",
+          "recordAudioAndroid": false
+        }
+      ],
+      "expo-image",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

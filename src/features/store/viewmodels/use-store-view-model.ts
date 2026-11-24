@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 
 import { getAccessErrorMessage } from '@/features/authorization/models/access-errors';
-import { getProducts } from '@/features/store/api/products-api';
 import {
   getCategorySummaries,
   getNewestProducts,
@@ -10,6 +9,7 @@ import {
   sanitizeSearch,
 } from '@/features/store/models/product';
 import { toProductCardItem } from '@/features/store/models/product-card-item';
+import { productsRepository } from '@/features/store/repositories/products-repository';
 import { useAuthorizedResource } from '@/hooks/use-authorized-resource';
 import { useDelayedFlag } from '@/hooks/use-delayed-flag';
 
@@ -17,7 +17,7 @@ const SKELETON_DELAY_MS = 300;
 
 /** Screen 09 · Tienda: search, categories and newest products. */
 export function useStoreViewModel() {
-  const resource = useAuthorizedResource(getProducts);
+  const resource = useAuthorizedResource(productsRepository.getProducts);
   const [query, setQuery] = useState('');
   const products = resource.data ?? [];
 

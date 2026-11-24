@@ -227,10 +227,10 @@ describe("Integración — detalle y carrito (pantallas 11 y 12)", () => {
     await user.press(await screen.findByRole("button", { name: "AGREGAR" }));
     expect(screen.getByText("AGREGADO")).toBeOnTheScreen();
     expect(screen.getByText("Tienes 1 en tu carrito.")).toBeOnTheScreen();
-    expect(screen.getByText("Total (1 producto)")).toBeOnTheScreen();
+    expect(screen.getByText("Subtotal (1 producto)")).toBeOnTheScreen();
 
     await user.press(screen.getByRole("button", { name: increase }));
-    expect(screen.getByText("Total (2 productos)")).toBeOnTheScreen();
+    expect(screen.getByText("Subtotal (2 productos)")).toBeOnTheScreen();
     expect(screen.getAllByText("$1,098.00").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: increase })).toBeDisabled();
     expect(screen.getByText("Tienes 2 en tu carrito, el máximo disponible.")).toBeOnTheScreen();
@@ -287,7 +287,7 @@ describe("Integración — detalle y carrito (pantallas 11 y 12)", () => {
     expect(screen.getByRole("button", { name: "COMPRAR" })).toBeDisabled();
   });
 
-  it("deja el pago como próximamente", async () => {
+  it("pagar lleva a finalizar compra y avisa que el envío se calcula ahí", async () => {
     jest.mocked(getProduct).mockResolvedValue(creatine);
     await renderAsClient(
       <>
@@ -295,10 +295,13 @@ describe("Integración — detalle y carrito (pantallas 11 y 12)", () => {
         <CartView />
       </>,
     );
+    const user = userEvent.setup();
 
-    await userEvent.setup().press(await screen.findByRole("button", { name: "AGREGAR" }));
+    await user.press(await screen.findByRole("button", { name: "AGREGAR" }));
+    expect(screen.getByText("El envío se calcula al pagar")).toBeOnTheScreen();
 
-    expect(screen.getByLabelText("Pagar, próximamente")).toBeOnTheScreen();
+    await user.press(screen.getByRole("button", { name: "Pagar" }));
+    expect(router.push).toHaveBeenCalledWith("/cart/checkout");
   });
 
   it("no consulta la API cuando el id no es válido", async () => {

@@ -1,6 +1,7 @@
 import { getApiBaseUrl } from "../config/env";
+import { resolveApiRequestUrl } from '../config/api-url-policy';
 import { ApiError } from "../types/auth";
-import { getAccessToken, removeAccessToken } from "./sessionService";
+import { getAccessToken, invalidateAccessToken } from "./sessionService";
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -8,7 +9,10 @@ export interface ApiRequestOptions<TBody = unknown> {
   method?: HttpMethod;
   body?: TBody;
   auth?: boolean;
+  /** Bind session-ending operations to the credential captured when they began. */
+  expectedAccessToken?: string;
   headers?: Record<string, string>;
+  onResponse?: (metadata: { status: number; headers: Headers }) => void;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -19,7 +23,7 @@ function isFormData(value: unknown): value is FormData {
   return typeof FormData !== "undefined" && value instanceof FormData;
 }
 
-function extractErrorCode(data: unknown): string | undefined {
+export function extractErrorCode(data: unknown): string | undefined {
   if (isPlainObject(data) && typeof data.code === "string") {
     return data.code;
   }
@@ -27,7 +31,7 @@ function extractErrorCode(data: unknown): string | undefined {
   return undefined;
 }
 
-function extractErrorMessage(data: unknown): string {
+export function extractErrorMessage(data: unknown): string {
   if (typeof data === "string") {
     return data;
   }
@@ -61,6 +65,16 @@ function toSearchableText(value: unknown): string {
   return serialized.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+/**
+ * 403 de reglas de negocio: la sesión sigue siendo válida. Los del acceso QR hablan del
+ * token del pase, no del de sesión, así que su texto no debe cerrar la sesión.
+ */
+const BUSINESS_FORBIDDEN_CODES = new Set([
+  "MEMBERSHIP_REQUIRED",
+  "QR_OWNER_INVALID",
+  "SELF_SCAN_FORBIDDEN",
+]);
+
 export function shouldInvalidateSession(
   status: number,
   body: unknown,
@@ -73,7 +87,8 @@ export function shouldInvalidateSession(
     return false;
   }
 
-  if (extractErrorCode(body) === "MEMBERSHIP_REQUIRED") {
+  const code = extractErrorCode(body);
+  if (code && BUSINESS_FORBIDDEN_CODES.has(code)) {
     return false;
   }
 
@@ -98,6 +113,12 @@ export function shouldInvalidateSession(
   ];
 
   return authSignals.some((signal) => text.includes(signal));
+}
+
+/** Retry-After in whole seconds; the HTTP-date form is ignored and absurd values are capped. */
+export function parseRetryAfterSeconds(value: string | null | undefined): number | undefined {
+  if (!value || !/^\d+$/.test(value.trim())) return undefined;
+  return Math.min(Number(value.trim()), 3600);
 }
 
 async function parseResponseBody(response: Response): Promise<unknown> {
@@ -129,24 +150,37 @@ export async function apiRequest<T>(
   path: string,
   options: ApiRequestOptions = {},
 ): Promise<T> {
-  const { method = "GET", body, auth = true, headers = {} } = options;
+  const { method = "GET", body, auth = true, headers = {}, onResponse } = options;
   const baseUrl = getApiBaseUrl();
-  const isAbsoluteUrl = /^https?:\/\//i.test(path);
-  const url = isAbsoluteUrl
-    ? path
-    : `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+  const url = resolveApiRequestUrl(baseUrl, path, __DEV__);
 
   const requestHeaders = new Headers(headers);
+  // Callers cannot smuggle a credential into a public request.
+  requestHeaders.delete('Authorization');
+  let token: string | null = null;
+
+  async function invalidate(error: ApiError) {
+    error.sessionInvalidationHandled = true;
+    try { await invalidateAccessToken(token); } catch {
+      // Preserve the HTTP failure. The invalidator closes UI/cache in finally.
+    }
+  }
 
   if (body !== undefined && body !== null && !isFormData(body)) {
     requestHeaders.set("Content-Type", "application/json");
   }
 
   if (auth) {
-    const token = await getAccessToken();
+    token = await getAccessToken();
 
     if (!token) {
-      throw new ApiError("Authentication required.", 401, { code: "NO_TOKEN" });
+      const error = new ApiError("Authentication required.", 401, { code: "NO_TOKEN" });
+      await invalidate(error);
+      throw error;
+    }
+
+    if (options.expectedAccessToken !== undefined && token !== options.expectedAccessToken) {
+      throw new ApiError('The session changed before this request.', 409, undefined, 'SESSION_CHANGED');
     }
 
     requestHeaders.set("Authorization", `Bearer ${token}`);
@@ -163,7 +197,12 @@ export async function apiRequest<T>(
     method,
     headers: requestHeaders,
     body: requestBody,
+    redirect: 'error',
   });
+
+  // Some native fetch implementations do not enforce redirect: 'error'. This
+  // rejects an unexpected final origin, but cannot undo a followed redirect.
+  if (response.url) resolveApiRequestUrl(baseUrl, response.url, __DEV__);
 
   const responseBody = await parseResponseBody(response);
 
@@ -175,13 +214,15 @@ export async function apiRequest<T>(
       responseBody,
       extractErrorCode(responseBody),
     );
+    apiError.retryAfterSeconds = parseRetryAfterSeconds(response.headers?.get?.("retry-after"));
 
     if (auth && shouldInvalidateSession(response.status, responseBody)) {
-      await removeAccessToken();
+      await invalidate(apiError);
     }
 
     throw apiError;
   }
 
+  onResponse?.({ status: response.status, headers: response.headers });
   return (responseBody ?? null) as T;
 }

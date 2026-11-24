@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 
 import { getAccessErrorMessage } from '@/features/authorization/models/access-errors';
-import { getProducts } from '@/features/store/api/products-api';
 import {
   filterProducts,
   getCategories,
@@ -11,10 +10,14 @@ import {
   sanitizeSearch,
 } from '@/features/store/models/product';
 import { toProductCardItem } from '@/features/store/models/product-card-item';
+import { productsRepository } from '@/features/store/repositories/products-repository';
 import { useAuthorizedResource } from '@/hooks/use-authorized-resource';
 import { useDelayedFlag } from '@/hooks/use-delayed-flag';
+import { usePagination } from '@/hooks/use-pagination';
 
 const SKELETON_DELAY_MS = 300;
+/** Even, so the 2-column grid never ends a page with a lonely card. */
+const PRODUCTS_PER_PAGE = 12;
 
 interface CatalogParams {
   category?: unknown;
@@ -23,7 +26,7 @@ interface CatalogParams {
 
 /** Screen 10 · Catálogo. Route params are validated before they are used. */
 export function useCatalogViewModel(params: CatalogParams) {
-  const resource = useAuthorizedResource(getProducts);
+  const resource = useAuthorizedResource(productsRepository.getProducts);
   const [categoryId, setCategoryId] = useState(() => parseCategoryParam(params.category));
   const [query, setQuery] = useState(() =>
     typeof params.q === 'string' ? sanitizeSearch(params.q) : '',
@@ -33,6 +36,11 @@ export function useCatalogViewModel(params: CatalogParams) {
   const categories = getCategories(products);
   const selectedCategory = categories.find((category) => category.id === categoryId) ?? null;
   const visible = filterProducts(products, { categoryId: selectedCategory?.id ?? null, query });
+  const pagination = usePagination(
+    visible,
+    PRODUCTS_PER_PAGE,
+    `${selectedCategory?.id ?? 'all'}|${query}`,
+  );
 
   return {
     title: selectedCategory ? selectedCategory.name.toUpperCase() : 'CATÁLOGO',
@@ -46,7 +54,8 @@ export function useCatalogViewModel(params: CatalogParams) {
     maxQueryLength: MAX_SEARCH_LENGTH,
     categories,
     selectedCategoryId: selectedCategory?.id ?? null,
-    products: visible.map(toProductCardItem),
+    pagination,
+    products: pagination.pageItems.map(toProductCardItem),
     emptyMessage:
       products.length === 0
         ? 'Aún no hay productos en la tienda.'

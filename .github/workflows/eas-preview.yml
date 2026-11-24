@@ -11,8 +11,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  lockfile:
+    name: Instalación compatible con EAS antes de solicitar APK
+    uses: ./.github/workflows/dependency-install.yml
+
   calidad:
     name: Calidad antes de solicitar la APK
+    needs: [lockfile]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -28,7 +33,25 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      - name: Validar configuración de preview y origen de API
+      - name: Verificar generación de Android Release con R8
+        run: node scripts/verify-android-release.cjs --profile preview
+
+      - name: Conservar evidencia de configuración R8
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-config-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          path: |
+            .expo/android-release-*/verification.json
+            .expo/android-release-*/prebuild.log
+            .expo/android-release-*/android/gradle.properties
+            .expo/android-release-*/android/app/build.gradle
+            .expo/android-release-*/android/app/proguard-rules.pro
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Validar perfil de la rama y origen de API
         run: node scripts/eas-preview.cjs validate
 
       - name: Generar tipos de Expo Router
@@ -53,13 +76,15 @@ jobs:
         run: npm test -- --ci --runInBand
 
   build:
-    name: EAS Build preview Android
+    name: EAS Build Android APK
     needs: [calidad]
     runs-on: ubuntu-latest
     timeout-minutes: 120
     outputs:
       build_url: ${{ steps.resultado.outputs.build_url }}
       remote_status: ${{ steps.resultado.outputs.remote_status }}
+      apk_verified: ${{ steps.resultado.outputs.apk_verified }}
+      apk_sha256: ${{ steps.resultado.outputs.apk_sha256 }}
     steps:
       - name: Obtener el mismo commit validado
         uses: actions/checkout@v4
@@ -97,7 +122,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p coverage/eas-preview
-          npx eas-cli@latest build --platform android --profile preview --non-interactive --wait --json \
+          npx eas-cli@latest build --platform android --profile "$EAS_BUILD_PROFILE" --non-interactive --wait --json \
             > coverage/eas-preview/build.json \
             2> >(tee coverage/eas-preview/build.log >&2)
 
@@ -105,6 +130,15 @@ jobs:
         id: resultado
         if: ${{ !cancelled() && steps.compilar.outcome != 'skipped' }}
         run: node scripts/eas-preview.cjs result coverage/eas-preview/build.json coverage/eas-preview/build.log
+
+      - name: Conservar comprobación de APK ARCO sin URLs firmadas
+        if: ${{ !cancelled() && github.ref == 'refs/heads/feature/actividad6-seguridad-api' && steps.resultado.outputs.apk_verified == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: arco-apk-verification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: coverage/eas-preview/apk-verification.json
+          if-no-files-found: error
+          retention-days: 14
 
   resumen:
     name: Resumen de calidad y compilación
@@ -126,4 +160,6 @@ jobs:
           BUILD_RESULT: ${{ needs.build.result }}
           BUILD_URL: ${{ needs.build.outputs.build_url }}
           REMOTE_STATUS: ${{ needs.build.outputs.remote_status }}
+          APK_VERIFIED: ${{ needs.build.outputs.apk_verified }}
+          APK_SHA256: ${{ needs.build.outputs.apk_sha256 }}
         run: node scripts/eas-preview.cjs summary

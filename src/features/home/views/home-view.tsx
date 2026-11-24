@@ -36,7 +36,9 @@ export function HomeView() {
 
         <MembershipCard
           isAuthenticated={viewModel.isAuthenticated}
+          plan={viewModel.currentPlan}
           onLogin={viewModel.openLogin}
+          onOpenAccess={viewModel.openAccess}
           onOpenMemberships={viewModel.openMemberships}
         />
 

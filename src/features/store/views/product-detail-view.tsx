@@ -3,6 +3,7 @@ import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BACK_ICON, IconButton } from '@/components/ui/icon-button';
 import { ErrorState } from '@/components/ui/screen-state';
 import { useProductDetailViewModel } from '@/features/store/viewmodels/use-product-detail-view-model';
 import { useFlyToCart } from '@/features/store/views/fly-to-cart';
@@ -134,13 +135,13 @@ export function ProductDetailView({ productId }: { productId: unknown }) {
       </ScrollView>
 
       <View pointerEvents="box-none" style={[styles.topActions, { top: insets.top + 12 }]}>
-        <RoundButton
-          icon={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
+        <IconButton
+          icon={BACK_ICON}
           label="Regresar"
           onPress={viewModel.goBack}
         />
         {product ? (
-          <RoundButton
+          <IconButton
             icon={{ ios: 'square.and.arrow.up', android: 'share', web: 'share' }}
             label="Compartir producto"
             onPress={viewModel.share}
@@ -195,26 +196,6 @@ export function ProductDetailView({ productId }: { productId: unknown }) {
       ) : null}
       {flyToCart.flyer}
     </View>
-  );
-}
-
-interface RoundButtonProps {
-  icon: SymbolViewProps['name'];
-  label: string;
-  onPress: () => void;
-}
-
-function RoundButton({ icon, label, onPress }: RoundButtonProps) {
-  return (
-    <Pressable
-      accessibilityLabel={label}
-      accessibilityRole="button"
-      hitSlop={6}
-      style={({ pressed }) => [styles.roundButton, pressed && styles.pressed]}
-      onPress={onPress}
-    >
-      <SymbolView name={icon} size={20} tintColor={AppColors.neutral.text} />
-    </Pressable>
   );
 }
 
@@ -315,17 +296,6 @@ const styles = StyleSheet.create({
     left: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  roundButton: {
-    width: 44,
-    height: 44,
-    borderWidth: 1,
-    borderColor: AppColors.border.soft,
-    borderRadius: 22,
-    backgroundColor: AppColors.surface.default,
-    boxShadow: '0 2px 8px rgba(15, 15, 15, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   actionBar: {
     position: 'absolute',

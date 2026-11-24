@@ -1,0 +1,202 @@
+'use strict';
+
+// Generates an isolated Android project and checks its R8 wiring. No Gradle or EAS build.
+const assert = require('node:assert/strict');
+const { spawnSync } = require('node:child_process');
+const { createHash } = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
+const { parseArgs } = require('node:util');
+const { AndroidConfig } = require('expo/config-plugins');
+const { readManifest, verifyPrebuildPermissions, verifyMergedPermissions } = require('./android-permissions.cjs');
+const { verifyOptionalPortraitFeature } = require('./android-features.cjs');
+const { PROFILES, getSettings, configureApp, readConfig } = require('../config/alpha-pinning.cjs');
+const { policiesForAlpha } = require('../plugins/with-network-security.cjs');
+const { certificatePinnerSource } = require('../plugins/alpha-certificate-pinner.cjs');
+
+const projectRoot = path.resolve(path.dirname(module.filename), '..');
+const readJson = (file) => JSON.parse(fs.readFileSync(path.join(projectRoot, file), 'utf8'));
+
+async function verifyAndroidRelease(profileName = 'production', mergedManifestPath) {
+  const app = readJson('app.json');
+  const eas = readJson('eas.json');
+  assert.equal(app.expo.orientation, 'portrait', 'Conservar la orientación vertical de la aplicación.');
+  assert.ok(PROFILES.includes(profileName));
+  const settings = readConfig();
+  const environment = { ...process.env, CI: '1', EXPO_OFFLINE: '1', EXPO_NO_TELEMETRY: '1', EXPO_NO_DOTENV: '1',
+    ...eas.build[profileName].env, EAS_BUILD_PROFILE: profileName };
+  configureApp(app.expo, environment, settings, eas);
+  const active = getSettings(settings);
+  const expectedPolicies = policiesForAlpha(settings);
+  const plugin = app.expo.plugins.find((entry) => Array.isArray(entry) && entry[0] === 'expo-build-properties');
+  assert.equal(plugin?.[1]?.android?.enableMinifyInReleaseBuilds, true);
+  assert.equal(plugin?.[1]?.android?.enableShrinkResourcesInReleaseBuilds, true);
+  for (const [profile, buildType] of [['preview', 'apk'], ['production', 'app-bundle'], ['arco-release', 'apk']]) {
+    const build = eas.build[profile];
+    assert.equal(build.android.buildType, buildType);
+    assert.notEqual(build.developmentClient, true, `${profile} debe usar Release.`);
+    assert.notEqual(build.android.developmentClient, true);
+    assert.equal(build.android.gradleCommand, undefined, 'Revisar cualquier override de Gradle.');
+    assert.ok(build.android.buildArtifactPaths.includes('android/app/build/outputs/mapping/release/**'));
+  }
+  const arco = eas.build['arco-release'];
+  assert.equal(arco.extends, undefined);
+  assert.equal(arco.distribution, 'internal');
+  assert.equal(arco.env.EXPO_PUBLIC_API_URL, settings.apiOrigin);
+  assert.equal(arco.env.EXPO_PUBLIC_ARCO_BACKEND_ENABLED, 'true');
+  assert.notEqual(arco.environment, 'production');
+
+  const stagingRoot = path.join(projectRoot, '.expo');
+  fs.mkdirSync(stagingRoot, { recursive: true });
+  const snapshot = fs.mkdtempSync(path.join(stagingRoot, 'android-release-'));
+  for (const file of ['app.json', 'app.config.js', 'eas.json', 'package.json', 'assets', 'plugins', 'config']) {
+    fs.cpSync(path.join(projectRoot, file), path.join(snapshot, file), { recursive: true });
+  }
+  // Prebuild only needs the Router directory, not a second copy of the app or its tests.
+  fs.mkdirSync(path.join(snapshot, 'src', 'app'), { recursive: true });
+  const expoRoot = path.dirname(require.resolve('expo/package.json'));
+  const args = [
+    path.join(expoRoot, 'bin', 'cli'),
+    'prebuild', '--platform', 'android', '--no-install',
+    '--template', path.join(expoRoot, 'template.tgz'),
+  ];
+  let generated;
+  try {
+    generated = spawnSync(process.execPath, args, {
+      cwd: snapshot,
+      encoding: 'utf8',
+      timeout: 120000,
+      env: environment,
+    });
+  } finally {
+    // Jest indexes package names even under .expo; the temporary manifest must not remain.
+    fs.unlinkSync(path.join(snapshot, 'package.json'));
+  }
+  fs.writeFileSync(path.join(snapshot, 'prebuild.log'), `${generated.stdout || ''}\n${generated.stderr || ''}`);
+  if (generated.error) throw generated.error;
+  assert.equal(generated.status, 0, `Prebuild falló. Consulta ${path.join(snapshot, 'prebuild.log')}`);
+
+  const nativeRoot = path.join(snapshot, 'android');
+  const properties = fs.readFileSync(path.join(nativeRoot, 'gradle.properties'), 'utf8');
+  const targetSdk = Number(properties.match(/^android\.targetSdkVersion=(\d+)$/m)?.[1]);
+  assert.ok(targetSdk >= 36, 'El proyecto generado debe declarar targetSdk 36 o superior.');
+  const gradle = fs.readFileSync(path.join(nativeRoot, 'app', 'build.gradle'), 'utf8');
+  const proguard = fs.readFileSync(path.join(nativeRoot, 'app', 'proguard-rules.pro'), 'utf8');
+  for (const property of ['android.enableMinifyInReleaseBuilds', 'android.enableShrinkResourcesInReleaseBuilds']) {
+    const values = properties.split(/\r?\n/).filter((line) => line.startsWith(`${property}=`));
+    assert.deepEqual(values, [`${property}=true`], `${property} debe estar habilitado una sola vez.`);
+  }
+  assert.match(gradle, /findProperty\('android\.enableMinifyInReleaseBuilds'\)/);
+  assert.match(gradle, /release\s*\{[\s\S]*?minifyEnabled enableMinifyInReleaseBuilds/);
+  assert.match(gradle, /release\s*\{[\s\S]*?findProperty\('android\.enableShrinkResourcesInReleaseBuilds'\)[\s\S]*?shrinkResources enableShrinkResources\.toBoolean\(\)/);
+  assert.match(gradle, /proguardFiles getDefaultProguardFile\("proguard-android-optimize\.txt"\), "proguard-rules\.pro"/);
+  assert.doesNotMatch(proguard, /^\s*-dont(?:obfuscate|shrink|optimize)\b/m);
+  const manifest = fs.readFileSync(path.join(nativeRoot, 'app', 'src', 'main', 'AndroidManifest.xml'), 'utf8');
+  assert.match(manifest, /android:usesCleartextTraffic="false"/);
+  assert.match(manifest, /android:networkSecurityConfig="@xml\/titanium_network_security"/);
+  const policy = (variant) => fs.readFileSync(path.join(nativeRoot, 'app', 'src', variant, 'res', 'xml', 'titanium_network_security.xml'), 'utf8');
+  for (const variant of ['main', 'debug']) {
+    assert.match(policy(variant), /base-config cleartextTrafficPermitted="false"/);
+    assert.match(policy(variant), /certificates src="system"/);
+    assert.doesNotMatch(policy(variant), /src="user"|debug-overrides|overridePins|expiration=/);
+    assert.equal(policy(variant), expectedPolicies[variant], 'El XML generado debe coincidir exactamente con la política revisada.');
+  }
+  assert.doesNotMatch(policy('main'), /cleartextTrafficPermitted="true"/);
+  for (const variant of ['main', 'debug']) {
+    assert.deepEqual([...policy(variant).matchAll(/<pin digest="SHA-256">(.*?)<\/pin>/g)].map(match => match[1]), active.pins);
+    assert.ok(policy(variant).includes(`<domain includeSubdomains="false">${active.host}</domain>`));
+  }
+  assert.deepEqual([...policy('debug').matchAll(/<domain>(.*?)<\/domain>/g)].map(match => match[1]), ['localhost', '127.0.0.1', '10.0.2.2']);
+  const prebuildManifestPath = path.join(nativeRoot, 'app', 'src', 'main', 'AndroidManifest.xml');
+  const cameraPackagePath = require.resolve('expo-camera/package.json');
+  const cameraManifestPath = path.join(path.dirname(cameraPackagePath), 'android', 'src', 'main', 'AndroidManifest.xml');
+  const prebuildManifest = await readManifest(prebuildManifestPath);
+  const portraitHardwareFeature = verifyOptionalPortraitFeature(prebuildManifest);
+  const portraitEntry = prebuildManifest.manifest['uses-feature'].find(entry => entry.$['android:name'] === portraitHardwareFeature.name);
+  assert.equal(portraitEntry.$['tools:replace'], 'android:required', 'Conservar el valor opcional al fusionar bibliotecas.');
+  assert.equal(prebuildManifest.manifest.$['xmlns:tools'], 'http://schemas.android.com/tools');
+  assert.equal(AndroidConfig.Manifest.getMainActivityOrThrow(prebuildManifest).$['android:screenOrientation'], 'portrait');
+  const permissionEvidence = verifyPrebuildPermissions(prebuildManifest,
+    await readManifest(cameraManifestPath), app.expo.android.blockedPermissions);
+  let mergedManifest = null;
+  if (mergedManifestPath) {
+    const file = path.resolve(mergedManifestPath);
+    assert.notEqual(fs.realpathSync(file), fs.realpathSync(prebuildManifestPath), 'No usar el main del prebuild como manifiesto fusionado.');
+    assert.notEqual(fs.realpathSync(file), fs.realpathSync(cameraManifestPath), 'No usar el manifiesto de expo-camera como fusionado.');
+    const mergedDocument = await readManifest(file);
+    mergedManifest = {
+      path: file,
+      sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
+      permissions: verifyMergedPermissions(mergedDocument, app.expo.android.blockedPermissions),
+      portraitHardwareFeature: verifyOptionalPortraitFeature(mergedDocument),
+      provenanceVerified: false,
+    };
+  }
+  const mainApplication = fs.readFileSync(path.join(nativeRoot, 'app', 'src', 'main', 'java', ...app.expo.android.package.split('.'), 'MainApplication.kt'), 'utf8');
+  assert.doesNotMatch(mainApplication, /TitaniumPinningLab|setOkHttpClientFactory|sslSocketFactory|hostnameVerifier/);
+  const installation = 'TitaniumCertificatePinning.install(this)';
+  assert.equal(mainApplication.split(installation).length - 1, 1);
+  assert.ok(mainApplication.indexOf(installation) < mainApplication.indexOf('loadReactNative(this)'));
+  const kotlin = fs.readFileSync(path.join(nativeRoot, 'app', 'src', 'main', 'java', ...app.expo.android.package.split('.'), 'TitaniumCertificatePinning.kt'), 'utf8');
+  assert.equal(kotlin, certificatePinnerSource(settings));
+  assert.doesNotMatch(kotlin, /sslSocketFactory|hostnameVerifier|TrustManager|TitaniumPinningLab/);
+  const debugManifest = fs.readFileSync(path.join(nativeRoot, 'app', 'src', 'debug', 'AndroidManifest.xml'), 'utf8');
+  assert.doesNotMatch(debugManifest, /networkSecurityConfig=/);
+
+  const evidence = {
+    verifiedAt: new Date().toISOString(),
+    expo: require('expo/package.json').version,
+    reactNative: require('react-native/package.json').version,
+    buildProperties: require('expo-build-properties/package.json').version,
+    sourceHashes: Object.fromEntries(['app.json', 'app.config.js', 'eas.json', 'package.json', 'package-lock.json',
+      'config/alpha-pinning-public-chain.json', 'config/alpha-pinning.cjs', 'plugins/with-network-security.cjs',
+      'plugins/alpha-certificate-pinner.cjs', 'plugins/with-optional-portrait-hardware.cjs',
+      'scripts/verify-android-release.cjs', 'scripts/android-permissions.cjs', 'scripts/android-features.cjs'].map((file) => [
+      file, createHash('sha256').update(fs.readFileSync(path.join(projectRoot, file))).digest('hex'),
+    ])),
+    snapshot: path.relative(projectRoot, snapshot),
+    minifyEnabled: true,
+    configuredTargetSdk: targetSdk,
+    binaryTargetSdkVerified: false,
+    shrinkResources: true,
+    releaseCleartextBlocked: true,
+    systemCertificateAuthoritiesOnly: true,
+    profile: profileName,
+    certificatePinning: Boolean(active),
+    mode: settings.mode,
+    okHttpCertificatePinnerGenerated: true,
+    pinningHostname: active.host,
+    spkiPins: active.pins,
+    operationalBackup: null,
+    nativeRuntimePinningVerified: false,
+    ...permissionEvidence,
+    cameraDependencyManifest: {
+      package: 'expo-camera',
+      version: JSON.parse(fs.readFileSync(cameraPackagePath, 'utf8')).version,
+      path: path.relative(projectRoot, cameraManifestPath),
+      sha256: createHash('sha256').update(fs.readFileSync(cameraManifestPath)).digest('hex'),
+    },
+    mergedManifest,
+    portraitHardwareFeature,
+    suppliedMergedManifestPortraitVerified: Boolean(mergedManifest),
+    suppliedMergedManifestPermissionsVerified: Boolean(mergedManifest),
+    mergedBinaryPermissionsVerified: false,
+    proguardPreset: 'proguard-android-optimize.txt',
+    appProguardRules: 'android/app/proguard-rules.pro',
+    gradleBuildExecuted: false,
+    easBuildExecuted: false,
+    arcoRelease: { apiOrigin: arco.env.EXPO_PUBLIC_API_URL, enabled: true, buildType: 'apk', distribution: arco.distribution },
+  };
+  fs.writeFileSync(path.join(snapshot, 'verification.json'), `${JSON.stringify(evidence, null, 2)}\n`);
+  console.log(JSON.stringify(evidence, null, 2));
+}
+
+async function main() {
+  const { values } = parseArgs({ options: { profile: { type: 'string' }, 'merged-manifest': { type: 'string' } } });
+  await verifyAndroidRelease(values.profile, values['merged-manifest']);
+}
+
+main().catch(error => {
+  console.error(error.message);
+  process.exitCode = 1;
+});

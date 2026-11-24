@@ -1,89 +1,39 @@
-import { SymbolView } from 'expo-symbols';
-import { StyleSheet, Text, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AppSectionScreen } from '@/components/layout/app-section-screen';
-import { EmptyState, ErrorState, LoadingState } from '@/components/ui/screen-state';
-import { useTrainerClientsViewModel } from '@/features/trainer/viewmodels/use-trainer-clients-view-model';
-import { AppColors, AppFonts, AppFontSizes, AppSpacing } from '@/theme/tokens';
+import { IllustratedEmptyState } from '@/components/ui/illustrated-empty-state';
+import { AppColors, AppFonts, AppFontSizes } from '@/theme/tokens';
 
+/**
+ * Entrenador — Clientes. El backend todavía no asigna socios a los entrenadores, así que la
+ * pestaña muestra "Próximamente" en lugar de una lista que siempre estaría vacía.
+ */
 export function TrainerClientsView() {
-  const viewModel = useTrainerClientsViewModel();
-
   return (
-    <AppSectionScreen
-      title="CLIENTES"
-      description="Clientes asignados a tu cuenta."
-      refreshing={viewModel.isRefreshing}
-      onRefresh={viewModel.refresh}>
-      {viewModel.isLoading ? (
-        <LoadingState label="Cargando clientes…" />
-      ) : viewModel.errorMessage ? (
-        <ErrorState message={viewModel.errorMessage} onRetry={viewModel.retry} />
-      ) : viewModel.clients.length === 0 ? (
-        <EmptyState
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Text accessibilityRole="header" style={styles.title}>
+            CLIENTES
+          </Text>
+          <Text style={styles.subtitle}>Socios que entrenan contigo</Text>
+        </View>
+        <IllustratedEmptyState
+          description="Pronto podrás ver aquí a los socios que entrenan contigo, asignarles tus rutinas y seguir su avance."
           icon={{ ios: 'person.2', android: 'group', web: 'group' }}
-          title="Aún no tienes clientes asignados"
-          description="Cuando un cliente se asigne contigo aparecerá en esta lista."
+          title="PRÓXIMAMENTE"
         />
-      ) : (
-        viewModel.clients.map((client) => (
-          <View key={client.id} style={styles.card}>
-            <View style={styles.avatar}>
-              <SymbolView
-                name={{ ios: 'person.fill', android: 'person', web: 'person' }}
-                size={22}
-                tintColor={AppColors.neutral.white}
-              />
-            </View>
-            <View style={styles.copy}>
-              <Text numberOfLines={1} style={styles.name}>
-                {client.displayName}
-              </Text>
-              {client.displayName !== client.email ? (
-                <Text numberOfLines={1} style={styles.email}>
-                  {client.email}
-                </Text>
-              ) : null}
-            </View>
-          </View>
-        ))
-      )}
-    </AppSectionScreen>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    minHeight: 72,
-    borderWidth: 1,
-    borderColor: AppColors.border.default,
-    borderRadius: 8,
-    backgroundColor: AppColors.surface.default,
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: AppSpacing.three,
-    padding: AppSpacing.three,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: AppColors.brand.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  copy: { minWidth: 0, flex: 1 },
-  name: {
-    color: AppColors.neutral.text,
-    fontFamily: AppFonts.emphasis,
-    fontSize: AppFontSizes.label,
-    lineHeight: 20,
-  },
-  email: {
-    marginTop: AppSpacing.half,
-    color: AppColors.neutral.muted,
-    fontFamily: AppFonts.body,
-    fontSize: AppFontSizes.caption,
-    lineHeight: 17,
-  },
+  safeArea: { flex: 1, backgroundColor: AppColors.surface.default },
+  content: { width: '100%', maxWidth: 560, flexGrow: 1, alignSelf: 'center', gap: 14, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 124 },
+  header: { gap: 2 },
+  title: { color: AppColors.neutral.black, fontFamily: AppFonts.display, fontSize: AppFontSizes.hero, letterSpacing: 0.5, lineHeight: 42 },
+  subtitle: { color: AppColors.neutral.muted, fontFamily: AppFonts.body, fontSize: AppFontSizes.caption, lineHeight: 16 },
 });

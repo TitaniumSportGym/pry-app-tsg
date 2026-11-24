@@ -1,5 +1,7 @@
 /** Payments of the signed-in user from /api/payments/me. */
 
+import { formatMxnAmount } from '@/utils/money';
+
 export type PaymentStatus = "paid" | "pending" | "cancelled" | "refunded" | "rejected" | "unknown";
 
 export interface Payment {
@@ -9,7 +11,10 @@ export interface Payment {
   status: PaymentStatus;
   /** When it was paid, or when it was created if it is not paid yet. */
   date: Date;
+  orderId: string | null;
   orderNumber: string | null;
+  /** How it was paid, as the backend sends it (online_checkout, cash, card_terminal…). */
+  method: string;
 }
 
 const STATUS_ALIASES: Record<string, PaymentStatus> = {
@@ -61,7 +66,14 @@ export function parsePayment(raw: unknown): Payment | null {
     currency: typeof raw.currency === "string" ? raw.currency : "MXN",
     status: STATUS_ALIASES[rawStatus] ?? "unknown",
     date,
+    orderId:
+      typeof raw.orderId === "string" && raw.orderId
+        ? raw.orderId
+        : order && typeof order.id === "string"
+          ? order.id
+          : null,
     orderNumber: order && typeof order.orderNumber === "string" ? order.orderNumber : null,
+    method: typeof raw.method === "string" ? raw.method.toLowerCase() : "",
   };
 }
 
@@ -80,8 +92,7 @@ export function getPaymentStatusLabel(status: PaymentStatus) {
 }
 
 export function formatPaymentAmount(amount: number) {
-  const [integer, decimals] = (Math.round(amount * 100) / 100).toFixed(2).split(".");
-  return `$${integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${decimals}`;
+  return formatMxnAmount(amount);
 }
 
 /** "12 oct 2026", independent of the device locale. */

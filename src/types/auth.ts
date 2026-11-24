@@ -1,3 +1,5 @@
+import type { ConsentAcceptance, ConsentReceipt } from '@/features/privacy/models/arco-contracts';
+
 export interface UserSession {
   id: string;
   email: string;
@@ -27,13 +29,16 @@ export interface VerifyOtpRequest {
 
 export interface RegisterRequest extends LoginCredentials {
   client: "mobile";
+  privacyConsent?: ConsentAcceptance;
 }
 
 export interface AuthMessageResponse {
   message: string;
 }
 
-export type RegisterResponse = AuthMessageResponse;
+export interface RegisterResponse extends AuthMessageResponse {
+  privacyConsent?: ConsentReceipt;
+}
 
 export type VerifyAccountOtpRequest = VerifyOtpRequest;
 export type VerifyAccountOtpResponse = AuthMessageResponse;
@@ -58,9 +63,13 @@ export interface AuthResult {
 }
 
 export class ApiError extends Error {
+  /** The API client already handled expiry, including stale responses and storage failures. */
+  public sessionInvalidationHandled = false;
   public readonly status: number;
   public readonly data?: unknown;
   public readonly code?: string;
+  /** Seconds the server asked to wait (Retry-After header) before trying again. */
+  public retryAfterSeconds?: number;
 
   constructor(message: string, status: number, data?: unknown, code?: string) {
     super(message);

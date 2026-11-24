@@ -88,16 +88,10 @@ export function CartView() {
           <View style={styles.totalCopy}>
             <Text style={styles.totalLabel}>{viewModel.countLabel}</Text>
             <Text style={styles.totalAmount}>{viewModel.total}</Text>
+            <Text style={styles.totalNote}>El envío se calcula al pagar</Text>
           </View>
           <View style={styles.payColumn}>
-            <View
-              accessible
-              accessibilityLabel="Pagar, próximamente"
-              accessibilityState={{ disabled: true }}
-              style={styles.payButton}
-            >
-              <Text style={styles.payText}>PAGAR</Text>
-            </View>
+            <AppButton style={styles.payButton} title="Pagar" onPress={viewModel.checkout} />
           </View>
         </View>
       ) : null}
@@ -182,20 +176,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     lineHeight: 26,
   },
-  payColumn: { alignItems: 'center', gap: AppSpacing.one },
-  payButton: {
-    width: 150,
-    height: 50,
-    borderRadius: 18,
-    backgroundColor: AppColors.brand.primary,
-    opacity: 0.56,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  payText: {
-    color: AppColors.neutral.white,
-    fontFamily: AppFonts.button,
-    fontSize: AppFontSizes.label,
-    letterSpacing: 0.6,
+  payColumn: { width: 150 },
+  payButton: { minHeight: 50 },
+  totalNote: {
+    color: AppColors.neutral.muted,
+    fontFamily: AppFonts.body,
+    fontSize: 11,
+    lineHeight: 14,
   },
 });

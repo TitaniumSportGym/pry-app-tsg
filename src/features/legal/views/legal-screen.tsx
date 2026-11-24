@@ -1,9 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
-import { SymbolView } from 'expo-symbols';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BACK_ICON, IconButton } from '@/components/ui/icon-button';
 import { AppColors, AppFonts, AppFontSizes, AppSpacing } from '@/theme/tokens';
 
 interface LegalScreenProps {
@@ -30,19 +30,7 @@ export function LegalScreen({
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Pressable
-            accessibilityLabel="Regresar"
-            accessibilityRole="button"
-            hitSlop={8}
-            style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
-            onPress={onBack}
-          >
-            <SymbolView
-              name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
-              size={20}
-              tintColor={AppColors.neutral.text}
-            />
-          </Pressable>
+          <IconButton icon={BACK_ICON} label="Regresar" style={styles.back} onPress={onBack} />
           <View style={styles.titleBlock}>
             <Text
               accessibilityRole="header"
@@ -74,17 +62,8 @@ const styles = StyleSheet.create({
     paddingTop: AppSpacing.three,
     paddingBottom: 112,
   },
-  header: { alignItems: 'center', flexDirection: 'row', gap: 14 },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderWidth: 1,
-    borderColor: AppColors.border.default,
-    borderRadius: 14,
-    backgroundColor: AppColors.surface.default,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  header: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+  back: { marginLeft: -10 },
   titleBlock: { minWidth: 0, flex: 1, gap: 2 },
   title: {
     color: AppColors.neutral.black,
@@ -99,5 +78,4 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   body: { gap: 22 },
-  pressed: { opacity: 0.7 },
 });

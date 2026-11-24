@@ -4,38 +4,46 @@ import { useCallback } from 'react';
 import { getAccessErrorMessage } from '@/features/authorization/models/access-errors';
 import { HOME_ACTIONS, type HomeActionId } from '@/features/home/models/home-actions';
 import { getInitials, getMemberId, pickRecommendedProducts } from '@/features/home/models/home';
-import { getMyPayments } from '@/features/payments/api/payments-api';
 import {
   formatPaymentAmount,
   formatPaymentDate,
   getPaymentStatusLabel,
 } from '@/features/payments/models/payment';
-import { getProducts } from '@/features/store/api/products-api';
+import {
+  PAYMENT_KEYS,
+  paymentsRepository,
+} from '@/features/payments/repositories/payments-repository';
+import { useMySubscription } from '@/features/memberships/viewmodels/use-my-subscription';
 import { formatProductPrice } from '@/features/store/models/product';
+import { productsRepository } from '@/features/store/repositories/products-repository';
 import { useAuth } from '@/hooks/use-auth';
-import { useAuthorizedResource } from '@/hooks/use-authorized-resource';
+import { useAuthorizedResource, type LoadOptions } from '@/hooks/use-authorized-resource';
 import { useDelayedFlag } from '@/hooks/use-delayed-flag';
 
 const SKELETON_DELAY_MS = 300;
 
-const ACTION_ROUTES = {
+/** Acciones rápidas con pantalla; las que no aparecen aquí se muestran como "PRONTO". */
+const ACTION_ROUTES: Partial<Record<HomeActionId, '/memberships' | '/store' | '/account/payments'>> = {
   memberships: '/memberships',
+  payments: '/account/payments',
   store: '/store',
-} as const satisfies Partial<Record<HomeActionId, string>>;
+};
 
 export function useHomeViewModel() {
   const { status, user } = useAuth();
   const isAuthenticated = status === 'authenticated';
   const memberId = isAuthenticated ? getMemberId(user?.email) : null;
 
-  const products = useAuthorizedResource(getProducts);
+  const products = useAuthorizedResource(productsRepository.getProducts);
+  const subscription = useMySubscription();
 
   // Guests have no payments, so no request is made without a session.
   const loadPayments = useCallback(
-    async () => (isAuthenticated ? getMyPayments() : []),
+    async (options: LoadOptions) =>
+      isAuthenticated ? paymentsRepository.getRecentPayments(options) : [],
     [isAuthenticated],
   );
-  const payments = useAuthorizedResource(loadPayments);
+  const payments = useAuthorizedResource(loadPayments, { reloadOn: [PAYMENT_KEYS.all] });
   const lastPayment = payments.data?.[0] ?? null;
 
   const showProductsSkeleton = useDelayedFlag(products.isLoading, SKELETON_DELAY_MS);
@@ -50,6 +58,7 @@ export function useHomeViewModel() {
     greeting: isAuthenticated ? '¡Hola de nuevo!' : 'Hola, invitado',
     initials: getInitials(memberId),
     actions: HOME_ACTIONS,
+    currentPlan: subscription.plan,
 
     recommended: {
       isLoading: products.isLoading,
@@ -87,15 +96,18 @@ export function useHomeViewModel() {
     refresh() {
       products.refresh();
       payments.refresh();
+      subscription.refresh();
     },
 
     openAction(actionId: HomeActionId) {
-      if (actionId === 'memberships' || actionId === 'store') {
-        router.push(ACTION_ROUTES[actionId]);
-      }
+      const route = ACTION_ROUTES[actionId];
+      if (route) router.push(route);
     },
     openMemberships() {
       router.push('/memberships');
+    },
+    openAccess() {
+      router.push('/account/access');
     },
     openStore() {
       router.push('/store');

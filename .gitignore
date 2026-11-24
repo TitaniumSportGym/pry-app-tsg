@@ -60,6 +60,9 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
 pnpm-debug.log*
 
 # --------------------------------------------------
@@ -162,3 +165,10 @@ Desktop.ini
 .env*.local
 .reassure/
 example
+
+# documentos locales (no se suben)
+/aviso-publicado.pdf
+docs/ARQUITECTURA-TECNICA.md
+docs/ARQUITECTURA-TECNICA.docx
+docs/Guia-de-skeletons-Titanium.docx
+docs/PATRONES-DE-DISENO.md

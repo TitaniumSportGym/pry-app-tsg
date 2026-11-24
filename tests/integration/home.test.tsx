@@ -65,7 +65,9 @@ const paidPayment: Payment = {
   currency: "MXN",
   status: "paid",
   date: new Date(2026, 9, 12),
+  orderId: "o1",
   orderNumber: "ORD-2026-000002",
+  method: "online_checkout",
 };
 
 async function renderHome(session: "guest" | "client") {
@@ -129,6 +131,9 @@ describe("Integración — inicio del cliente", () => {
 
     await user.press(screen.getByRole("button", { name: "Tienda" }));
     expect(router.push).toHaveBeenCalledWith("/store");
+
+    await user.press(screen.getByRole("button", { name: "Mis pagos" }));
+    expect(router.push).toHaveBeenCalledWith("/account/payments");
   });
 
   it("muestra como próximamente lo que aún no tiene datos", async () => {
@@ -136,7 +141,6 @@ describe("Integración — inicio del cliente", () => {
     await renderHome("client");
 
     expect(await screen.findByText("Reserva tus clases desde la app")).toBeOnTheScreen();
-    expect(screen.getByRole("button", { name: "Mis pagos, próximamente" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Reservar, próximamente" })).toBeDisabled();
     expect(screen.getByLabelText("Notificaciones, próximamente")).toBeOnTheScreen();
   });

@@ -1,3 +1,5 @@
+import { validateApiUrl } from './api-url-policy';
+
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
 
 export function getApiBaseUrl(): string {
@@ -9,5 +11,12 @@ export function getApiBaseUrl(): string {
     );
   }
 
-  return baseUrl.replace(/\/+$/, "");
+  let end = baseUrl.length;
+  while (end > 0 && baseUrl[end - 1] === "/") {
+    end -= 1;
+  }
+  const normalized = baseUrl.slice(0, end);
+  const url = validateApiUrl(normalized, __DEV__);
+  if (url.search) throw new Error('The API base URL cannot contain a query.');
+  return normalized;
 }

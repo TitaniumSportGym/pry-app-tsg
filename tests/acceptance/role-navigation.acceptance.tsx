@@ -35,7 +35,7 @@ describe('Aceptación simulada — navegación y sesión por rol', () => {
     if (role === 'cliente') {
       expect(screen.getByText('Cliente')).toBeOnTheScreen();
       await user.press(screen.getByRole('button', { name: 'Mi membresía' }));
-      expect(router.push).toHaveBeenLastCalledWith('/memberships');
+      expect(router.push).toHaveBeenLastCalledWith('/account/membership');
       await user.press(screen.getByRole('button', { name: 'Membresías Titanium' }));
       expect(router.push).toHaveBeenLastCalledWith('/memberships');
       expect(screen.queryByRole('button', { name: 'Membresías del gimnasio' })).toBeNull();
@@ -53,7 +53,7 @@ describe('Aceptación simulada — navegación y sesión por rol', () => {
       await user.press(screen.getByRole('button', { name: 'Usuarios' }));
       expect(router.push).toHaveBeenLastCalledWith('/admin/users');
       await user.press(screen.getByRole('button', { name: 'Pagos' }));
-      expect(router.push).toHaveBeenLastCalledWith('/admin/payments');
+      expect(router.push).toHaveBeenLastCalledWith('/admin/account/payments');
       expect(screen.queryByRole('button', { name: 'Mi membresía' })).toBeNull();
       expect(screen.queryByRole('button', { name: 'Membresías del gimnasio' })).toBeNull();
     }

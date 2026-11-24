@@ -7,6 +7,7 @@ import type { MembershipArea } from '@/features/memberships/models/membership-ar
 import { useMembershipsViewModel } from '@/features/memberships/viewmodels/use-memberships-view-model';
 import { BenefitsCard } from '@/features/memberships/views/benefits-card';
 import { BuyMembershipButton } from '@/features/memberships/views/buy-membership-button';
+import { CurrentPlanCard } from '@/features/memberships/views/current-plan-card';
 import { MembershipsSkeleton } from '@/features/memberships/views/membership-skeletons';
 import { AppColors, AppFonts, AppFontSizes, AppSpacing } from '@/theme/tokens';
 
@@ -34,9 +35,10 @@ export function MembershipsView({ area }: { area: MembershipArea }) {
         />
       ) : (
         <>
+          {viewModel.currentPlan ? <CurrentPlanCard plan={viewModel.currentPlan} /> : null}
           <View style={styles.header}>
             <Text accessibilityRole="header" style={styles.title}>
-              ELIGE TU MEMBRESÍA
+              {viewModel.currentPlan ? 'RENUEVA O CAMBIA DE PLAN' : 'ELIGE TU MEMBRESÍA'}
             </Text>
             <Text style={styles.subtitle}>Entrena con disciplina y alcanza tus objetivos.</Text>
           </View>

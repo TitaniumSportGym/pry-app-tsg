@@ -133,4 +133,46 @@ describe("authService — compatibilidad del login existente", () => {
     });
     expect(saveAccessToken).toHaveBeenCalledWith(response.accessToken);
   });
+
+  it.each([
+    { twoFactorRequired: true, method: "otp" },
+    { twoFactorRequired: true, accessToken: "no-guardar-hasta-otp" },
+    { message: "Sin token" },
+    { accessToken: "" },
+  ])("devuelve intacta la respuesta %j sin guardar un token", async (response) => {
+    apiRequestMock.mockResolvedValueOnce(response);
+
+    await expect(login(email, "Password123!")).resolves.toBe(response);
+
+    expect(saveAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("guarda el token cuando el backend desactiva explícitamente el doble factor", async () => {
+    const response = { twoFactorRequired: false, accessToken: "token-login" };
+    apiRequestMock.mockResolvedValueOnce(response);
+
+    await expect(login(email, "Password123!")).resolves.toBe(response);
+
+    expect(saveAccessToken).toHaveBeenCalledTimes(1);
+    expect(saveAccessToken).toHaveBeenCalledWith("token-login");
+  });
+
+  it("propaga el rechazo del backend sin crear una sesión", async () => {
+    const error = new ApiError("Credenciales inválidas", 401);
+    apiRequestMock.mockRejectedValueOnce(error);
+
+    await expect(login(email, "incorrecta")).rejects.toBe(error);
+
+    expect(saveAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("propaga un fallo al guardar el token", async () => {
+    const error = new Error("SecureStore unavailable");
+    apiRequestMock.mockResolvedValueOnce({ accessToken: "token-login" });
+    jest.mocked(saveAccessToken).mockRejectedValueOnce(error);
+
+    await expect(login(email, "Password123!")).rejects.toBe(error);
+
+    expect(saveAccessToken).toHaveBeenCalledWith("token-login");
+  });
 });

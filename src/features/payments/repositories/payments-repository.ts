@@ -1,0 +1,54 @@
+import {
+  repositoryCache,
+  type ReadOptions,
+  type RepositoryCache,
+} from '@/core/repository/repository-cache';
+import { getMyPaymentHistory, getMyPayments } from '@/features/payments/api/payments-api';
+import type { Payment } from '@/features/payments/models/payment';
+import type { PaymentHistoryEntry } from '@/features/payments/models/payment-history';
+
+/** Corto: Mercado Pago puede aprobar un pago pendiente en cualquier momento. */
+const PAYMENTS_TTL_MS = 60_000;
+
+export const PAYMENT_KEYS = {
+  all: 'payments',
+  recent: 'payments:recent',
+  history: 'payments:history',
+} as const;
+
+export interface PaymentsRepository {
+  /** Primera página de pagos, del más reciente al más antiguo ("último pago" del inicio). */
+  getRecentPayments(options?: ReadOptions): Promise<Payment[]>;
+  /** Todos los pagos con el nombre de lo que se pagó. */
+  getHistory(options?: ReadOptions): Promise<PaymentHistoryEntry[]>;
+  /** Llamar después de una compra: la siguiente lectura va al servidor y las pantallas abiertas se recargan. */
+  invalidate(): void;
+}
+
+export interface PaymentsDataSource {
+  getMyPayments(): Promise<Payment[]>;
+  getMyPaymentHistory(): Promise<PaymentHistoryEntry[]>;
+}
+
+const DEFAULT_DATA_SOURCE: PaymentsDataSource = { getMyPayments, getMyPaymentHistory };
+
+export function createPaymentsRepository(
+  dataSource: PaymentsDataSource = DEFAULT_DATA_SOURCE,
+  cache: RepositoryCache = repositoryCache,
+): PaymentsRepository {
+  return {
+    getRecentPayments: (options = {}) =>
+      cache.read(PAYMENT_KEYS.recent, () => dataSource.getMyPayments(), {
+        ...options,
+        ttlMs: PAYMENTS_TTL_MS,
+      }),
+    getHistory: (options = {}) =>
+      cache.read(PAYMENT_KEYS.history, () => dataSource.getMyPaymentHistory(), {
+        ...options,
+        ttlMs: PAYMENTS_TTL_MS,
+      }),
+    invalidate: () => cache.invalidate(PAYMENT_KEYS.all),
+  };
+}
+
+export const paymentsRepository = createPaymentsRepository();

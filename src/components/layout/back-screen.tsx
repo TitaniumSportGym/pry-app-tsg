@@ -1,9 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
-import { SymbolView } from 'expo-symbols';
 import type { ReactNode } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BACK_ICON, IconButton } from '@/components/ui/icon-button';
 import { AppColors, AppSpacing } from '@/theme/tokens';
 
 interface BackScreenProps {
@@ -38,18 +38,7 @@ export function BackScreen({
           />
         }
         showsVerticalScrollIndicator={false}>
-        <Pressable
-          accessibilityLabel="Regresar"
-          accessibilityRole="button"
-          hitSlop={8}
-          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
-          onPress={onBack}>
-          <SymbolView
-            name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
-            size={20}
-            tintColor={AppColors.neutral.text}
-          />
-        </Pressable>
+        <IconButton icon={BACK_ICON} label="Regresar" style={styles.back} onPress={onBack} />
         <View style={styles.body}>{children}</View>
       </ScrollView>
     </SafeAreaView>
@@ -67,16 +56,6 @@ const styles = StyleSheet.create({
     paddingTop: AppSpacing.three,
     paddingBottom: 112,
   },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderWidth: 1,
-    borderColor: AppColors.border.default,
-    borderRadius: 14,
-    backgroundColor: AppColors.surface.default,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  back: { marginLeft: -10 },
   body: { flex: 1, gap: AppSpacing.four, marginTop: AppSpacing.three },
-  pressed: { opacity: 0.7 },
 });

@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 
 import { getAccessErrorMessage } from '@/features/authorization/models/access-errors';
-import { getMembershipPlans } from '@/features/memberships/api/memberships-api';
 import {
   formatDuration,
   formatPrice,
@@ -14,7 +13,9 @@ import {
   getMembershipRoutes,
   type MembershipArea,
 } from '@/features/memberships/models/membership-area';
+import { membershipsRepository } from '@/features/memberships/repositories/memberships-repository';
 import { useMembershipPurchase } from '@/features/memberships/viewmodels/use-membership-purchase';
+import { useMySubscription } from '@/features/memberships/viewmodels/use-my-subscription';
 import { useAuthorizedResource } from '@/hooks/use-authorized-resource';
 import { useDelayedFlag } from '@/hooks/use-delayed-flag';
 
@@ -22,9 +23,10 @@ const SKELETON_DELAY_MS = 300;
 
 export function useMembershipsViewModel(area: MembershipArea) {
   const routes = getMembershipRoutes(area);
-  const resource = useAuthorizedResource(getMembershipPlans);
+  const resource = useAuthorizedResource(membershipsRepository.getPlans);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const purchase = useMembershipPurchase(area);
+  const subscription = useMySubscription(area === 'client');
 
   const plans = resource.data ?? [];
   const selectedPlan = plans.find((plan) => plan.id === selectedPlanId) ?? plans[0] ?? null;
@@ -37,6 +39,8 @@ export function useMembershipsViewModel(area: MembershipArea) {
       ? getAccessErrorMessage(resource.error, 'No encontramos membresías disponibles.')
       : null,
     isEmpty: !resource.isLoading && !resource.error && plans.length === 0,
+    /** Plan vigente del cliente (solo en el área del cliente). */
+    currentPlan: subscription.plan,
     planOptions: plans.map((plan) => ({ id: plan.id, name: plan.name })),
     selectedPlan: selectedPlan
       ? {
@@ -58,7 +62,10 @@ export function useMembershipsViewModel(area: MembershipArea) {
       if (selectedPlan) void purchase.buy(selectedPlan.id);
     },
     retry: resource.retry,
-    refresh: resource.refresh,
+    refresh() {
+      resource.refresh();
+      subscription.refresh();
+    },
     selectPlan: setSelectedPlanId,
     openDetail() {
       if (!selectedPlan) return;

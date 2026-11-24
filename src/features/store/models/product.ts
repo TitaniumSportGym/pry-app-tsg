@@ -1,6 +1,7 @@
 /** Products from the public endpoints /api/products and /api/products/:id_producto. */
 
 import type { CartProductSnapshot } from "@/features/cart/models/cart";
+import { formatMxnAmount } from "@/utils/money";
 
 export type ProductKind = "supplement" | "apparel" | "accessory" | "other";
 
@@ -194,8 +195,7 @@ export function filterProducts(
 }
 
 export function formatProductPrice(amount: number) {
-  const [integer, decimals] = (Math.round(amount * 100) / 100).toFixed(2).split(".");
-  return `$${integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${decimals}`;
+  return formatMxnAmount(amount);
 }
 
 export function isSoldOut(product: Pick<Product, "stock">) {

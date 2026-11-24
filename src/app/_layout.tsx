@@ -11,13 +11,15 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { AppSplashScreen } from '@/components/splash/app-splash-screen';
-import { getAccessibleAreas, getRoleRouteGroup } from '@/features/authorization/models/user-role';
+import { getAccessibleAreas } from '@/features/authorization/models/user-role';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthProvider } from '@/providers/auth-provider';
 import { CartProvider } from '@/providers/cart-provider';
 import { AppFonts } from '@/theme/tokens';
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch((error: unknown) => {
+  console.warn('No se pudo mantener visible el splash nativo.', error);
+});
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -52,7 +54,7 @@ function RootNavigator() {
   return (
     <View style={styles.app}>
       {sessionReady ? (
-        <Stack initialRouteName={getRoleRouteGroup(role)} screenOptions={{ headerShown: false }}>
+        <Stack screenOptions={{ headerShown: false }}>
           <Stack.Protected guard={areas.client}>
             <Stack.Screen name="(app)" />
           </Stack.Protected>

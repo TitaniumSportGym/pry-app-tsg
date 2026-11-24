@@ -13,6 +13,7 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 jest.mock('../../src/services/authService', () => ({
+  registerMobile: jest.fn(),
   getCurrentUser: jest.fn(),
   login: jest.fn(),
   logout: jest.fn(),
@@ -38,6 +39,10 @@ jest.mock('../../src/features/store/api/products-api', () => ({
   getProduct: jest.fn(),
   getProducts: jest.fn(),
 }));
+
+// Load RN's real Switch wrapper while the preset's native codegen mock still has
+// its implementation. resetAllMocks below must not break a later lazy import.
+jest.requireActual('react-native/Libraries/Components/Switch/Switch');
 
 beforeEach(() => {
   jest.resetAllMocks();

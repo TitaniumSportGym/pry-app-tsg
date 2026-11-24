@@ -29,6 +29,10 @@ const PROFILE: AccountMenuItem = {
   icon: { ios: 'person', android: 'person', web: 'person' },
 };
 
+function profileFor(role: UserRole): AccountMenuItem {
+  return { ...PROFILE, route: getLegalRoutes(role).rights };
+}
+
 const GYM_SECTION: AccountMenuSection = {
   title: 'TITANIUM SPORT GYM',
   items: [
@@ -82,22 +86,42 @@ const ROLE_SECTIONS: Record<UserRole, AccountMenuSection[]> = {
     {
       title: 'MI CUENTA',
       items: [
-        PROFILE,
+        profileFor('cliente'),
         {
           id: 'membership',
           label: 'Mi membresía',
           icon: { ios: 'crown', android: 'workspace_premium', web: 'workspace_premium' },
-          route: '/memberships',
+          route: '/account/membership',
+        },
+        {
+          id: 'access',
+          label: 'Mi acceso QR',
+          icon: { ios: 'qrcode', android: 'qr_code_2', web: 'qr_code_2' },
+          route: '/account/access',
+        },
+        {
+          id: 'access-history',
+          label: 'Historial de entradas',
+          icon: { ios: 'clock.arrow.circlepath', android: 'history', web: 'history' },
+          route: '/account/access/history',
         },
         {
           id: 'payments',
           label: 'Pagos y comprobantes',
           icon: { ios: 'doc.text', android: 'receipt_long', web: 'receipt_long' },
+          route: '/account/payments',
         },
         {
           id: 'orders',
           label: 'Mis pedidos',
           icon: { ios: 'bag', android: 'shopping_bag', web: 'shopping_bag' },
+          route: '/account/orders',
+        },
+        {
+          id: 'addresses',
+          label: 'Mis direcciones',
+          icon: { ios: 'mappin.and.ellipse', android: 'location_on', web: 'location_on' },
+          route: '/account/addresses',
         },
         {
           id: 'payment-methods',
@@ -118,6 +142,7 @@ const ROLE_SECTIONS: Record<UserRole, AccountMenuSection[]> = {
           id: 'routines',
           label: 'Mis rutinas',
           icon: { ios: 'dumbbell', android: 'fitness_center', web: 'fitness_center' },
+          route: '/account/routines',
         },
         {
           id: 'progress',
@@ -138,7 +163,13 @@ const ROLE_SECTIONS: Record<UserRole, AccountMenuSection[]> = {
     {
       title: 'MI CUENTA',
       items: [
-        PROFILE,
+        profileFor('entrenador'),
+        {
+          id: 'trainer-profile',
+          label: 'Perfil de entrenador',
+          icon: { ios: 'person.text.rectangle', android: 'badge', web: 'badge' },
+          route: '/trainer/account/profile',
+        },
         {
           id: 'memberships',
           label: 'Membresías del gimnasio',
@@ -173,7 +204,7 @@ const ROLE_SECTIONS: Record<UserRole, AccountMenuSection[]> = {
     getPreferencesSection('entrenador'),
   ],
   administrador: [
-    { title: 'MI CUENTA', items: [PROFILE] },
+    { title: 'MI CUENTA', items: [profileFor('administrador')] },
     {
       title: 'ADMINISTRACIÓN',
       items: [
@@ -187,7 +218,13 @@ const ROLE_SECTIONS: Record<UserRole, AccountMenuSection[]> = {
           id: 'payments',
           label: 'Pagos',
           icon: { ios: 'creditcard', android: 'payments', web: 'payments' },
-          route: '/admin/payments',
+          route: '/admin/account/payments',
+        },
+        {
+          id: 'access-history',
+          label: 'Historial de accesos',
+          icon: { ios: 'clock.arrow.circlepath', android: 'history', web: 'history' },
+          route: '/admin/access-history',
         },
       ],
     },

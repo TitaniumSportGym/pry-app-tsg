@@ -1,4 +1,7 @@
+import { randomUUID } from 'expo-crypto';
+
 import { ApiError } from '@/types/auth';
+import { isUuid } from '@/utils/uuid';
 
 /**
  * Membership checkout with Mercado Pago Checkout Pro, the same flow the website uses:
@@ -34,17 +37,23 @@ export function isTrustedCheckoutUrl(url: unknown): url is string {
   }
 }
 
-/** The checkout response must carry a trusted Mercado Pago URL. */
-export function parseCheckoutResponse(raw: unknown) {
-  const checkoutUrl =
-    typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>).checkoutUrl : null;
-
-  return isTrustedCheckoutUrl(checkoutUrl) ? { checkoutUrl } : null;
+/** Ids de orden: solo UUID, para no armar rutas ni URLs con datos inesperados. */
+export function isValidOrderId(id: unknown): id is string {
+  return isUuid(id);
 }
 
-function createKey() {
-  const uuid = globalThis.crypto?.randomUUID?.();
-  return uuid ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+/**
+ * The checkout response must carry a trusted Mercado Pago URL. The order id, when
+ * valid, lets the app check the payment status after Mercado Pago.
+ */
+export function parseCheckoutResponse(
+  raw: unknown,
+): { checkoutUrl: string; orderId?: string } | null {
+  const record = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
+  const { checkoutUrl, orderId } = record;
+
+  if (!isTrustedCheckoutUrl(checkoutUrl)) return null;
+  return isValidOrderId(orderId) ? { checkoutUrl, orderId } : { checkoutUrl };
 }
 
 const idempotencyKeys = new Map<string, string>();
@@ -57,7 +66,7 @@ export function getIdempotencyKey(signature: string) {
   const existing = idempotencyKeys.get(signature);
   if (existing) return existing;
 
-  const key = createKey();
+  const key = randomUUID();
   idempotencyKeys.set(signature, key);
   return key;
 }
