@@ -307,27 +307,53 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Medir línea base de la rama destino
+      - name: Medir línea base del commit destino con los mismos escenarios
         id: linea-base
         env:
           BASE_BRANCH: ${{ github.base_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          CURRENT_SHA="$(git rev-parse HEAD)"
-          git switch --detach "origin/$BASE_BRANCH"
-          if ! grep -q '"reassure"' package.json; then
-            echo "::error::La rama $BASE_BRANCH no tiene Reassure. No se puede validar el rendimiento sin línea base."
-            exit 1
-          fi
-          npm ci
-          npx reassure --baseline
-          git switch --detach "$CURRENT_SHA"
+          set -euo pipefail
+          BASELINE_DIR="$(mktemp -d "$RUNNER_TEMP/reassure-base.XXXXXX")"
+          git worktree add --detach "$BASELINE_DIR" "$BASE_SHA"
+          trap 'git worktree remove --force "$BASELINE_DIR"' EXIT
+          node -e 'const p = require(process.argv[1]); if (!p.devDependencies?.reassure) throw new Error("La rama destino no contiene Reassure; no se permite sustituirla por develop");' "$BASELINE_DIR/package.json"
+
+          # Mantener las pruebas adicionales del destino y usar el mismo escenario
+          # y las mismas aserciones del PR en ambos lados de la comparación.
+          mkdir -p "$BASELINE_DIR/tests/performance" .reassure
+          cp -R tests/performance/. "$BASELINE_DIR/tests/performance/"
+          echo "Generando línea base desde $BASE_BRANCH ($BASE_SHA)"
+          (
+            cd "$BASELINE_DIR"
+            npm ci
+            npx --no-install reassure --baseline --branch "$BASE_BRANCH" --commit-hash "$BASE_SHA" -- --ci --json --outputFile=.reassure/jest-baseline.json
+          )
+          cp "$BASELINE_DIR/.reassure/baseline.perf" .reassure/baseline.perf
+          cp "$BASELINE_DIR/.reassure/jest-baseline.json" .reassure/jest-baseline.json
 
       - name: Instalar dependencias
         run: npm ci
 
       - name: Medir rama actual y comparar
         id: comparar
-        run: npx reassure --branch "${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+        env:
+          REASSURE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          export REASSURE_CURRENT_SHA="$(git rev-parse HEAD)"
+          npx --no-install reassure --branch "${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}" --commit-hash "$REASSURE_CURRENT_SHA" -- --ci --json --outputFile=.reassure/jest-current.json
+          node scripts/verify-reassure.cjs
+
+      - name: Guardar mediciones y resultados de rendimiento
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rendimiento-reassure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .reassure/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Publicar resultados de rendimiento en texto
         if: always()

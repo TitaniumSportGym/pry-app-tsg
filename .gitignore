@@ -1,53 +1,170 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# ==================================================
+# TITANIUM SPORT GYM - MOBILE APP
+# React Native + Expo + TypeScript
+# ==================================================
 
-# dependencies
+# --------------------------------------------------
+# Dependencies
+# --------------------------------------------------
 node_modules/
 
+# --------------------------------------------------
 # Expo
+# --------------------------------------------------
 .expo/
+.expo-shared/
 dist/
 web-build/
 expo-env.d.ts
 
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
+# --------------------------------------------------
+# Native generated projects
+# --------------------------------------------------
+/android/
+/ios/
 
+# --------------------------------------------------
+# Environment variables and secrets
+# --------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# Local environment files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# --------------------------------------------------
+# TypeScript
+# --------------------------------------------------
+*.tsbuildinfo
+
+# --------------------------------------------------
 # Metro
+# --------------------------------------------------
 .metro-health-check*
+.metro-cache/
 
-# debug
+# --------------------------------------------------
+# React Native
+# --------------------------------------------------
+*.jsbundle
+
+# --------------------------------------------------
+# Logs
+# --------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+pnpm-debug.log*
+
+# --------------------------------------------------
+# Testing / Coverage
+# --------------------------------------------------
+coverage/
+.nyc_output/
+
+# --------------------------------------------------
+# Build files
+# --------------------------------------------------
+build/
+out/
+.tmp/
+temp/
+tmp/
+
+# --------------------------------------------------
+# Cache
+# --------------------------------------------------
+.cache/
+.parcel-cache/
+.eslintcache
+
+# --------------------------------------------------
+# Android / Gradle
+# --------------------------------------------------
+.gradle/
+*.apk
+*.aab
+*.dex
+*.class
+
+# Android signing files
+*.jks
+*.keystore
+
+# --------------------------------------------------
+# iOS / Xcode
+# --------------------------------------------------
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.ipa
+
+# --------------------------------------------------
+# EAS / Expo credentials
+# --------------------------------------------------
+*.mobileprovision
+*.p8
+*.p12
+*.key
+*.pem
+
+# --------------------------------------------------
+# IDE / Editor
+# --------------------------------------------------
+
+# Visual Studio Code
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# JetBrains / IntelliJ
+.idea/
+
+# --------------------------------------------------
+# Operating System files
+# --------------------------------------------------
+
+# Windows
+Thumbs.db
+Desktop.ini
 
 # macOS
 .DS_Store
-*.pem
+.AppleDouble
+.LSOverride
 
-# local env files
+# Linux
+*~
+
+# --------------------------------------------------
+# Temporary files
+# --------------------------------------------------
+*.tmp
+*.temp
+*.swp
+*.swo
+*.bak
+
+# --------------------------------------------------
+# Miscellaneous
+# --------------------------------------------------
+*.orig
+
+# Reglas adicionales de develop
+.kotlin/
+*.orig.*
 .env*.local
-
-# typescript
-*.tsbuildinfo
-
-example
-
-# generated native folders
-/ios
-/android
-.env
-
-# reassure
 .reassure/
-
-# jest coverage
-coverage/
+example
 
 # documentos locales (no se suben)
 /aviso-publicado.pdf
